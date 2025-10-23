@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Room Reservation Web App
+
+A simple and modern **room reservation web application** built with **Next.js**.
+
+---
+
+##  Features
+
+- Browse and select available rooms  
+- Book rooms with date & time selection  
+- Store reservations 
+
+---
+
+## Tech Stack
+
+| Tool | Purpose |
+|------|----------|
+| **Next.js** | React framework for the frontend |
+| **React** | Component-based UI library |
+| **JavaScript/TypeScript** | Main programming languages |
+| **Tailwind CSS** | Utility-first CSS framework for styling |
+| **Node.js** | Runtime environment |
+| **Turbopack** | Fast bundler for development |
+| **ESLint** | Linting and code quality checks |
+
+---
+
+## Project Structure
+
+```
+room-reservation/
+├── app/
+│ ├── page.js # Home page (entry point)
+│ ├── layout.js # Shared layout (header, footer, metadata)
+│ └── globals.css # Global styles
+├── public/ # Static assets (images, icons, etc.)
+├── package.json
+├── next.config.js
+└── README.md
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repository
+
+```bash 
+git clone https://github.com/YOUR_USERNAME/room-reservation.git
+cd room-reservation
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000 in your browser to view it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Requirements
+- Node.js 18+  
+- npm 9+ or pnpm/yarn  
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Authors
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Alamer Alia
+- GitHub profile: [Alia-Alamer](https://github.com/Alia-Alamer)
+- alia.alamer@edu.fh-joanneum.at
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Enzi Ramona
+- GitHub profile: [monaenzi](https://github.com/monaenzi)
+- ramona.enzi@edu.fh-joanneum.at
 
-## Deploy on Vercel
+### Kadyrova Linda
+- GitHub profile: [lindakadyrova](https://github.com/lindakadyrova)
+- linda.kadyrova@edu.fh-joanneum.at
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Wychodil-Lubi Lucas
+- GitHub profile: [lucaswychodil](https://github.com/lucaswychodil)
+- lucas.wychodil-lubi@edu.fh-joanneum.at
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
