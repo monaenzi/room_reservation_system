@@ -47,7 +47,7 @@ room-reservation/
 ### 1. Clone the repository
 
 ```bash 
-git clone https://github.com/YOUR_USERNAME/room-reservation.git
+git clone https://github.com/monaenzi/room_reservation_system.git
 cd room-reservation
 ```
 
