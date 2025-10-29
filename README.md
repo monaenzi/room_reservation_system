@@ -48,7 +48,7 @@ room-reservation/
 
 ```bash 
 git clone https://github.com/monaenzi/room_reservation_system.git
-cd room-reservation
+cd room_reservation_system
 ```
 
 ### 2. Install dependencies
