@@ -15,7 +15,7 @@ export default function NavBar() {
     ];
 
 return (
-    <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md">
+    <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3 text-gray-800">
         <Link href="/" className="flex items-center gap-2">
           <Image src="/logo.svg" alt="KAIT Logo" width={80} height={32} />
