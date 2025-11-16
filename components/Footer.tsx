@@ -24,11 +24,11 @@ export default function Footer() {
                 Data protection FH JOANNEUM
                 </a>
             </p>
-            <div className="mt-4 flex justify-start">
+            {<div className="mt-4 flex justify-start">
                 <span className="inline-block rounded-md bg-slate-100 px-3 py-1 text-[10px] text-gray-500">
                     No liability is assumed for linked content.
                 </span>
-            </div>
+            </div>}
         </div>
     </footer>
     );
