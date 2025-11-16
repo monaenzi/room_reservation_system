@@ -14,8 +14,6 @@ export default function Home() {
         <div>
           <h1>
             <br />
-            <br />
-            <br />
             Willkommen bei dem
             <br />
             Raumbuchungssystem der
