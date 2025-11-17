@@ -5,7 +5,7 @@ export default function Home() {
                 <figure className="absolute inset-0 m-0">
           {/* Platzhalter-Bild im public-Ordner: /public/Bild1.PNG */}
           <img
-            src="/Bild1.PNG"
+            src="/pictures/picture1.jpeg"
             alt="Arbeitsbereich an der FH JOANNEUM"
             className="h-full w-full object-cover brightness-50"
           />
