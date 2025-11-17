@@ -26,11 +26,19 @@ export default function LoginPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data?.message || "Login fehlgeschlagen.");
+        if (res.status === 401) {
+        setError("Das Passwort ist falsch.");
+        } else if (res.status === 500) {
+        setError("Verbindung zur Datenbank nicht möglich.");
+        } else {
+        setError(data?.message || "Login fehlgeschlagen.");
+        }
+        return;
       }
 
       setSuccess(true);
     } catch (err: any) {
+      console.error(err);
       setError(err.message || "Es ist ein Fehler aufgetreten.");
     } finally {
       setLoading(false);
@@ -41,7 +49,7 @@ export default function LoginPage() {
     <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
-          src="/Bild1.PNG"
+          src="/pictures/picture2.jpeg"
           alt="Hintergrundbild Login"
           className="h-full w-full object-cover blur-sm"
         />
@@ -51,7 +59,7 @@ export default function LoginPage() {
     
       <div className="absolute inset-0 bg-black/20" />
       
-      <section className="relative z-12 w-full max-w-xl rounded-[32px] bg-white px-12 py-12 shadow-2xl sm:px-25 sm:py-6">
+      <section className="relative z-12 w-full max-w-xl rounded-[32px] bg-white px-12 py-12 shadow-2xl sm:px-25 sm:py-2">
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-green-700 sm:text-5xl">
             Login
@@ -64,8 +72,7 @@ export default function LoginPage() {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* E-Mail-Feld */}
-          <div className="relative">
+            <div className="relative">
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
               ✉️
             </div>
@@ -74,6 +81,9 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="Beispiel@fh-joanneum.at"
+              pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+              title="Bitte eine E-Mail-Adresse in einem gültigem Format eingeben."
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 pl-6 text-sm outline-none focus:border-green-800"
             />
           </div>
@@ -86,6 +96,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Passwort"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 pl-6 text-sm outline-none focus:border-green-800"
             />
             <div className="mt-1 text-right">
