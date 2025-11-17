@@ -3,9 +3,8 @@ export default function Home() {
     <main className="flex flex-col">
           <header className="relative flex min-h-[60vh] items-center justify-center overflow-hidden">
                 <figure className="absolute inset-0 m-0">
-          {/* Platzhalter-Bild im public-Ordner: /public/Bild1.PNG */}
-          <img
-            src="/Bild1.PNG"
+                    <img
+            src="/pictures/picture1.jpeg"
             alt="Arbeitsbereich an der FH JOANNEUM"
             className="h-full w-full object-cover brightness-50"
           />
@@ -27,7 +26,7 @@ export default function Home() {
 
       <section
         aria-labelledby="content-heading"
-        className="-mt-16 mb-12 flex justify-center px-4 sm:px-6 lg:px-8"
+        className="mt-2 mb-12 flex justify-center px-4 sm:px-6 lg:px-8"
       >
         <div className="w-full max-w-4xl rounded-2xl bg-neutral-100 p-8 shadow-xl sm:p-10">
           <h2
