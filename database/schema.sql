@@ -14,7 +14,7 @@ CREATE TABLE user (
     first_name VARCHAR(100) Not NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    account_deactivated BOOLEAN DEFAULT NULL, -- NULL = aktiv, 1= deaktiviert
+    account_deactivated BOOLEAN DEFAULT 0 NOT NULL, -- 0 = aktiv, 1= deaktiviert
     first_login BOOLEAN DEFAULT 0 NOT NULL, -- 0= muss Passwort ändern, 1= normal login
     FOREIGN KEY (role_id) REFERENCES role(role_id)
 );
@@ -26,8 +26,8 @@ CREATE TABLE room (
     room_capacity INT,
     floor_number INT,
     building VARCHAR(100),
-    is_visible BOOLEAN DEFAULT TRUE,
-    created_by INT;
+    is_visible BOOLEAN DEFAULT TRUE NOT NULL,
+    created_by INT,
     FOREIGN KEY (created_by) REFERENCES user(user_id)
 );
 
