@@ -15,7 +15,7 @@ type Timeslot = {
     name?: string;
 };
 
-const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 07–18
+const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 08–20
 const WEEKDAYS: Weekday[] = [
     'Montag',
     'Dienstag',
