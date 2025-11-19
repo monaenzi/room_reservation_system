@@ -34,7 +34,7 @@ CREATE TABLE room (
 CREATE TABLE timeslot (
     timeslot_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    status INT DEFAULT 0 NOT NULL,
+    timeslot_status INT DEFAULT 0 NOT NULL, -- status: 0 = not released/inactive, 1 = available, 2 = reserved, 3 = blocked by admin
     slot_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE booking (
     user_id INT NOT NULL,
     timeslot_id INT NOT NULL,
     reason TEXT NOT NULL,
-    status VARCHAR(20),
+    booking_status INT DEFAULT 0 NOT NULL, -- status: 0 = pending, 1 = confirmed, 2 =declined, 3= cancelled
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     responded_at TIMESTAMP NULL,
     cancelled_at TIMESTAMP NULL,
