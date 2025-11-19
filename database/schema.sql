@@ -19,3 +19,15 @@ CREATE TABLE user (
     FOREIGN KEY (role_id) REFERENCES role(role_id)
 )
 
+CREATE TABLE room (
+    room_id INT AUTO_INCREMENT PRIMARY KEY,
+    room_name VARCHAR(100) NOT NULL,
+    room_description TEXT,
+    room_capacity INT,
+    floor_number INT,
+    building VARCHAR(100),
+    is_visible BOOLEAN DEFAULT TRUE,
+    created_by INT;
+    FOREIGN KEY (created_by) REFERENCES user(user_id)
+)
+
