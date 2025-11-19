@@ -59,7 +59,7 @@ export default function LoginPage() {
     
       <div className="absolute inset-0 bg-black/20" />
       
-      <section className="relative z-12 w-full max-w-xl rounded-[32px] bg-white px-12 py-12 shadow-2xl sm:px-25 sm:py-2">
+      <section className="relative z-12 w-full max-w-xl rounded-[32px] bg-white px-12 py-12 shadow-2xl sm:px-25 sm:py-7">
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-green-700 sm:text-5xl">
             Login
