@@ -4,7 +4,7 @@
 CREATE TABLE role (
     role_id INT AUTO_INCREMENT PRIMARY KEY,
     role_name VARCHAR(50) NOT NULL
-)
+);
 
 CREATE TABLE user (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,7 +17,7 @@ CREATE TABLE user (
     account_deactivated BOOLEAN DEFAULT NULL, -- NULL = aktiv, 1= deaktiviert
     first_login BOOLEAN DEFAULT 0 NOT NULL, -- 0= muss Passwort ändern, 1= normal login
     FOREIGN KEY (role_id) REFERENCES role(role_id)
-)
+);
 
 CREATE TABLE room (
     room_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,5 +29,5 @@ CREATE TABLE room (
     is_visible BOOLEAN DEFAULT TRUE,
     created_by INT;
     FOREIGN KEY (created_by) REFERENCES user(user_id)
-)
+);
 
