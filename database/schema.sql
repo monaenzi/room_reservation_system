@@ -31,3 +31,27 @@ CREATE TABLE room (
     FOREIGN KEY (created_by) REFERENCES user(user_id)
 );
 
+CREATE TABLE timeslot (
+    timeslot_id INT PRIMARY KEY AUTO_INCREMENT,
+    room_id INT NOT NULL,
+    status INT DEFAULT 0 NOT NULL,
+    slot_date DATE NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    blocked_reason TEXT,
+    name VARCHAR(100),
+    FOREIGN KEY (room_id) REFERENCES Room(room_id)
+);
+ 
+CREATE TABLE booking (
+    booking_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    timeslot_id INT NOT NULL,
+    reason TEXT NOT NULL,
+    status VARCHAR(20),
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP NULL,
+    cancelled_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (timeslot_id) REFERENCES Timeslot(timeslot_id)
+);
