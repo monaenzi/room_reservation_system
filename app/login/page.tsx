@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();    
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,20 +29,31 @@ export default function LoginPage() {
 
       if (!res.ok) {
         if (res.status === 401) {
-        setError("Das Passwort ist falsch.");
+          setError("Das Passwort ist falsch.");
         } else if (res.status === 500) {
-        setError("Verbindung zur Datenbank nicht möglich.");
+          setError("Verbindung zur Datenbank nicht möglich.");
         } else if (res.status === 403) {
-        setError("Dieser Account ist deaktiviert.");
+          setError("Dieser Account ist deaktiviert.");
         } else {
-        setError(data?.message || "Login fehlgeschlagen.");
+          setError(data?.message || "Login fehlgeschlagen.");
         }
         return;
       }
+      
+      const mustChangePassword = data.mustChangePassword;
+      const role = data.role || "user";
 
-      if (data.mustChangePassword) {
-      router.push("/change-password");
-      return;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("userRole", role);
+      }
+
+      if (mustChangePassword) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("forcePasswordChange", "1");
+        }
+        router.push("/change-password");
+        return;
       }
 
       router.push("/");
@@ -63,9 +74,9 @@ export default function LoginPage() {
           className="h-full w-full object-cover blur-sm"
         />
       </div>
-    
+
       <div className="absolute inset-0 bg-black/20" />
-      
+
       <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-6 py-8 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-2xl font-bold text-green-700 sm:text-4xl md:text-5xl">
@@ -79,13 +90,13 @@ export default function LoginPage() {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            <div className="relative">
+          <div className="relative">
             <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
-                <img 
-                src="/icons/mail.svg" 
-                alt="E-Mail Icon" 
-                className="h-4 w-4 sm:h-5 sm:w-5 filter invert" 
-                />
+              <img
+                src="/icons/mail.svg"
+                alt="E-Mail Icon"
+                className="h-4 w-4 sm:h-5 sm:w-5 filter invert"
+              />
             </div>
             <input
               type="email"
@@ -100,11 +111,11 @@ export default function LoginPage() {
           </div>
           <div className="relative">
             <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
-                <img 
-                src="/icons/lock.svg" 
-                alt="Passwort Icon" 
-                className="h-4 w-4 sm:h-5 sm:w-5 filter invert" 
-                />
+              <img
+                src="/icons/lock.svg"
+                alt="Passwort Icon"
+                className="h-4 w-4 sm:h-5 sm:w-5 filter invert"
+              />
             </div>
             <input
               type="password"
