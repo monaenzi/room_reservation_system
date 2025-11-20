@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   
     const rows = await conn.query(
-      "SELECT id, email, password FROM users WHERE email = ? LIMIT 1",
+      "SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1",
       [email]
     );
 
