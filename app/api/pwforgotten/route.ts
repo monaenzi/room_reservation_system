@@ -96,7 +96,30 @@ export async function POST(req: NextRequest) {
                         </p>
                     </div>
 
+                    <div class="footer">
+                        <footer>
 
+                        <h1>IMPRESSUM</h1>
+
+                        <p>
+                            FH JOANNEUM GmbH, University of Applied Sciences<br>
+                            INSTITUTE Software Design and Security<br>
+                            Werk-VI-Straße 46<br>
+                            8605 Kapfenberg, AUSTRIA<br>
+                            T: +43 3862 6542-0<br>
+                            E: <a href="mailto:info@joanneum.at">info@joanneum.at</a>
+                        </p>
+
+                        <p>
+                        <a href="https://www.fh-joanneum.at/hochschule/organisation/datenschutz/">
+                            Data protection FH JOANNEUM
+                        </a>
+                        </p>
+
+                        <p>No liability is assumed for linked content.</p>
+
+                        </footer>
+                    </div>
 
                 </body>
                 </html>        
