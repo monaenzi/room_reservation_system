@@ -41,7 +41,7 @@ export default function RoomsOverviewPage() {
         <main className="flex justify-center px-3 py-6 mt-20 sm:px-4 sm:py-10 sm:mt-24">
             <div className="w-full max-w-5xl space-y-6 md:space-y-10">
                 {rooms.map((room, index) => (
-                    <section key={room.room_id} className="rounded-2xl bg-[#dfeedd] px-4 py-5 sm:rounded-3xl sm:px-6 sm:pb-8 sm:pt-6 md:px-10 md:pt-8">
+                    <section key={room.room_id} className="rounded-2xl bg-[#dfeedd] px-4 py-5 sm:rounded-3xl sm:px-6 sm:pb-8 sm:pt-6 md:px-10 md:pt-8 shadow-xl">
                         <div className={['flex flex-col gap-6 rounded-3xl bg-[#eaf4e7] p-4 md:p-6 md:gap-8', index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row',
                             ].join(' ')}>
                             {/* Image */}

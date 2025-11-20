@@ -1,7 +1,7 @@
 export default function Home() {
   return (
     <main className="flex flex-col">
-          <header className="relative flex min-h-[60vh] items-center justify-center overflow-hidden">
+          <header className="relative flex min-h-[60vh] items-center justify-center overflow-hidden pt-20 pb-10 md:pt-40 md:pb-20">
                 <figure className="absolute inset-0 m-0">
                     <img
             src="/pictures/picture1.jpeg"
@@ -14,7 +14,7 @@ export default function Home() {
         </figure>
 
         <div className="relative max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold leading-tight text-white drop-shadow-lg sm:text-4xl lg:text-5xl">
+          <h1 className="text-3xl font-bold leading-tight text-white text-center drop-shadow-lg sm:text-4xl lg:text-5xl">
             Willkommen bei dem
             <br />
             Raumbuchungssystem der
@@ -26,7 +26,7 @@ export default function Home() {
 
       <section
         aria-labelledby="content-heading"
-        className="mt-2 mb-12 flex justify-center px-4 sm:px-6 lg:px-8"
+        className="mt-2 mb-12 flex justify-center px-4 sm:px-6 lg:px-8 pt-5 md:pt-10"
       >
         <div className="w-full max-w-4xl rounded-2xl bg-neutral-100 p-8 shadow-xl sm:p-10">
           <h2
