@@ -23,7 +23,7 @@ CREATE TABLE room (
     room_capacity INT,
     floor_number INT,
     building VARCHAR(100),
-    is_visible TINYINT(1) DEFAULT 0 NOT NULL,
+    is_visible TINYINT(1) DEFAULT 1 NOT NULL,
     created_by INT,
     FOREIGN KEY (created_by) REFERENCES users(user_id)
 );
