@@ -3,18 +3,78 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react"; 
+import { useState, useEffect } from "react";
+ 
+
+type Role = "guest" | "user" | "admin";
 
 export default function NavBar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+    const [role, setRole] = useState<Role>("guest");
     
-    const navLinks = [
+/*     const navLinks = [
         { href: "/", label: "Startseite" },
         { href: "/rooms", label: "Räume" },
         { href: "/calender", label: "Kalender" },
         { href: "/login", label: "Userverwaltung" },
-    ];
+    ]; */
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const storedRole = (localStorage.getItem("userRole") as Role) || "guest";
+
+    if (!isLoggedIn) {
+      setRole("guest");
+    } else if (storedRole === "admin") {
+      setRole("admin");
+    } else {
+      setRole("user");
+    }
+  }, []);
+
+    const commonLinks = (
+    <>
+      <Link href="/" className="nav-link">
+        Startseite
+      </Link>
+      <Link href="/rooms" className="nav-link">
+        Räume
+      </Link>
+      <Link href="/calendar" className="nav-link">
+        Kalender
+      </Link>
+    </>
+  );
+
+  const adminLinks = (
+    <>
+      <Link href="/admin/users" className="nav-link">
+        Userverwaltung
+      </Link>
+      <Link href="/admin/tools" className="nav-link">
+        Admintools
+      </Link>
+    </>
+  );
+
+  return (
+    <nav className="navbar">
+      <div className="navbar-inner">
+        {/* z.B. Logo links */}
+        <div className="nav-links">
+          {commonLinks}
+          {role === "admin" && adminLinks}
+        </div>
+
+        {/* Login / Logout Button kannst du später auch role-basiert machen */}
+      </div>
+    </nav>
+  );
+}
+
 
 return (
     <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
