@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
- 
 
 type Role = "guest" | "user" | "admin";
 
@@ -12,6 +11,7 @@ export default function NavBar() {
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const [role, setRole] = useState<Role>("guest");
+    const router = useRouter();
     
 /*     const navLinks = [
         { href: "/", label: "Startseite" },
@@ -35,48 +35,31 @@ export default function NavBar() {
     }
   }, []);
 
-    const commonLinks = (
-    <>
-      <Link href="/" className="nav-link">
-        Startseite
-      </Link>
-      <Link href="/rooms" className="nav-link">
-        Räume
-      </Link>
-      <Link href="/calendar" className="nav-link">
-        Kalender
-      </Link>
-    </>
-  );
+   function handleLogout() {
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("forcePasswordChange");
+    setRole("guest");
+    router.push("/");
+  }
 
-  const adminLinks = (
-    <>
-      <Link href="/admin/users" className="nav-link">
-        Userverwaltung
-      </Link>
-      <Link href="/admin/tools" className="nav-link">
-        Admintools
-      </Link>
-    </>
-  );
-
-  return (
-    <nav className="navbar">
-      <div className="navbar-inner">
-        {/* z.B. Logo links */}
-        <div className="nav-links">
-          {commonLinks}
-          {role === "admin" && adminLinks}
-        </div>
-
-        {/* Login / Logout Button kannst du später auch role-basiert machen */}
-      </div>
-    </nav>
-  );
-}
+    const commonLinks =  [
+    { href: "/", label: "Startseite" },
+    { href: "/rooms", label: "Räume" },
+    { href: "/calender", label: "Kalender" },
+  ];
 
 
-return (
+  const adminLinks = 
+    role === "admin"
+      ? [
+          { href: "/admin/users", label: "Userverwaltung" },
+          { href: "/admin/tools", label: "Admintools" },
+        ]
+      : [];
+       const navLinks = [...commonLinks, ...adminLinks];
+
+ return (
     <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2 sm:px-6 sm:py-3 text-gray-800">
         <Link href="/" className="flex items-center gap-2">
@@ -100,9 +83,24 @@ return (
           ))}
         </ul>
 
-        <Link href="/login" aria-label="Login" className="hidden md:flex items-center">
-          <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
-        </Link>
+        {role === "guest" ? (
+          <Link
+            href="/login"
+            aria-label="Login"
+            className="hidden md:flex items-center"
+          >
+            <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Logout"
+            className="hidden md:flex items-center"
+          >
+            <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
+          </button>
+        )}
 
         <button type="button" className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-700" aria-label="Navigation umschalten" aria-expanded={isOpen} onClick={() => setIsOpen((prev) => !prev)}>
           {!isOpen ? (
@@ -127,10 +125,29 @@ return (
                         </ul>
 
                         <div className="mt-3">
+                          {role === "guest" ? (
                             <Link href="/login" className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700" onClick={() => setIsOpen(false)}>
                                 <Image src="/icons/login.svg" alt="Login" width={22} height={22} />
                                 <span>Login</span>
                             </Link>
+                            ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleLogout();
+                    setIsOpen(false);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700"
+                >
+                  <Image
+                    src="/icons/logout.svg"
+                    alt="Logout"
+                    width={22}
+                    height={22}
+                  />
+                  <span>Logout</span>
+                </button>
+              )}  
                         </div>
                     </div>
                 </div>
