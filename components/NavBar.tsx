@@ -33,7 +33,7 @@ export default function NavBar() {
     } else {
       setRole("user");
     }
-  }, []);
+  }, [pathname]);
 
    function handleLogout() {
     localStorage.removeItem("isLoggedIn");
