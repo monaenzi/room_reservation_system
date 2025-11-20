@@ -74,7 +74,11 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
-              ✉️
+                <img 
+                src="/icons/mail.svg" 
+                alt="E-Mail Icon" 
+                className="h-5 w-5 filter invert" 
+                />
             </div>
             <input
               type="email"
@@ -89,7 +93,11 @@ export default function LoginPage() {
           </div>
           <div className="relative">
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
-              🔒
+                <img 
+                src="/icons/lock.svg" 
+                alt="Passwort Icon" 
+                className="h-5 w-5 filter invert" 
+                />
             </div>
             <input
               type="password"

@@ -74,7 +74,6 @@ export default function PasswordForgottenPage() {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* E-Mail */}
           <div className="relative">
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
                 <img 
@@ -101,7 +100,7 @@ export default function PasswordForgottenPage() {
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
                 <img 
                 src="/icons/user.svg" 
-                alt="E-Mail Icon" 
+                alt="User Icon" 
                 className="h-5 w-5 filter invert" 
                 />
             </div>
@@ -121,7 +120,7 @@ export default function PasswordForgottenPage() {
             <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
                 <img 
                 src="/icons/user.svg" 
-                alt="E-Mail Icon" 
+                alt="User Icon" 
                 className="h-5 w-5 filter invert" 
                 />
             </div>
