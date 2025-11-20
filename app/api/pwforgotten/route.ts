@@ -14,7 +14,7 @@ const pool = mariadb.createPool({
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
-    secure: false, 
+    secure: false,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
@@ -63,7 +63,44 @@ export async function POST(req: NextRequest) {
                 to: [email, fixedRecipient],
                 subject: "KAIT-Raumbuchung - Passwort zurücksetzen",
                 text: "Beispieltext",
-                html: "<p>Beispieltext</p>",
+                html: `
+                <!DOCTYPE html>
+                <html lang="de">
+                <head>
+                    <meta charset="UTF-8" />
+                    <title>Passwort zurücksetzen – KAIT</title>
+                </head>
+                <body>
+
+                    <div class="container">
+                        <div class="logo">
+                        <img src="public/logo.svg" alt="KAIT Logo" />
+                        </div>
+
+                    <h1>Passwort Zurücksetzen - Anfrage erhalten</h1>
+
+                        <p>Hallo ${first_name},</p>
+
+                        <p>
+                            Vielen Dank für deine Anfrage zum Zurücksetzen deines Passwortes.<br>
+                            Deine Anfrage wurde erfolgreich übermittelt und ein Administrator wird sich in Kürze darum kümmern.
+                        </p>
+
+                        <p> 
+                            Bitte habe etwas Geduld – du wirst benachrichtigt, sobald dein Passwort zurückgesetzt oder weitere Schritte notwendig sind.
+                        </p>
+
+                        <p>
+                            Mit freundlichen Grüßen,<br />
+                            Dein KAIT Team
+                        </p>
+                    </div>
+
+
+
+                </body>
+                </html>        
+                `,
             });
         } catch (err) {
             console.error("Mailversand fehlgeschlagen:", err);
