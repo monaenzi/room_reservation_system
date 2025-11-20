@@ -69,10 +69,12 @@ export async function POST(req: NextRequest) {
 }
 
 const mustChangePassword = user.first_login === 0;
+const role = user.role_id === 1 ? "admin" : "user"; 
 
     return NextResponse.json(
       { message: "Login erfolgreich.",
       mustChangePassword,
+      role,
   },
       { status: 200 }
     );
