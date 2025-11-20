@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   
     const rows = await conn.query(
-      "SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1",
+      "SELECT user_id, email, password_hash, first_login, account_deactivated FROM users WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -61,9 +61,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    
+    if (user.account_deactivated) {
+  return NextResponse.json(
+    { message: "Dieser Account ist deaktiviert." },
+    { status: 403 }
+  );
+}
+
+const mustChangePassword = user.first_login === 0;
+
     return NextResponse.json(
-      { message: "Login erfolgreich." },
+      { message: "Login erfolgreich." 
+      mustChangePassword,
+  },
       { status: 200 }
     );
   } catch (err) {
