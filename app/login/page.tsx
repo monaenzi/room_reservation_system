@@ -2,8 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();    
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,13 +32,20 @@ export default function LoginPage() {
         setError("Das Passwort ist falsch.");
         } else if (res.status === 500) {
         setError("Verbindung zur Datenbank nicht möglich.");
+        } else if (res.status === 403) {
+        setError("Dieser Account ist deaktiviert.");
         } else {
         setError(data?.message || "Login fehlgeschlagen.");
         }
         return;
       }
 
-      setSuccess(true);
+      if (data.mustChangePassword) {
+      router.push("/change-password");
+      return;
+      }
+
+      router.push("/");
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Es ist ein Fehler aufgetreten.");
