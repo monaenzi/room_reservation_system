@@ -46,38 +46,36 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80">
+    <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80 pt-10 md:pt-25">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
           src="/pictures/picture2.jpeg"
           alt="Hintergrundbild Login"
           className="h-full w-full object-cover blur-sm"
         />
-        <div className="absolute inset-y-0 left-0 w-8 bg-white" />
-        <div className="absolute inset-y-0 right-0 w-8 bg-white" />
       </div>
     
       <div className="absolute inset-0 bg-black/20" />
       
-      <section className="relative z-12 w-full max-w-xl rounded-[32px] bg-white px-12 py-12 shadow-2xl sm:px-25 sm:py-7">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-green-700 sm:text-5xl">
+      <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-6 py-8 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
+        <header className="mb-6 text-center sm:mb-8">
+          <h1 className="text-2xl font-bold text-green-700 sm:text-4xl md:text-5xl">
             Login
           </h1>
-          <p className="mt-4 text-sm text-neutral-700">
+          <p className="mt-3 text-xs text-neutral-700 sm:text-sm sm:mt-4">
             Loggen Sie sich hier ein, um bei uns
             <br />
             einen Raum zu reservieren
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="relative">
-            <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
+            <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
                 <img 
                 src="/icons/mail.svg" 
                 alt="E-Mail Icon" 
-                className="h-5 w-5 filter invert" 
+                className="h-4 w-4 sm:h-5 sm:w-5 filter invert" 
                 />
             </div>
             <input
@@ -88,15 +86,15 @@ export default function LoginPage() {
               placeholder="Beispiel@fh-joanneum.at"
               pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
               title="Bitte eine E-Mail-Adresse in einem gültigem Format eingeben."
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 pl-6 text-sm outline-none focus:border-green-800"
+              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-2 pl-5 text-sm outline-none focus:border-green-800 sm:py-3 sm:pl-6"
             />
           </div>
           <div className="relative">
-            <div className="absolute -left-4 -top-4 flex h-10 w-10 items-center justify-center rounded-full bg-green-700 text-white shadow-md">
+            <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
                 <img 
                 src="/icons/lock.svg" 
                 alt="Passwort Icon" 
-                className="h-5 w-5 filter invert" 
+                className="h-4 w-4 sm:h-5 sm:w-5 filter invert" 
                 />
             </div>
             <input
@@ -105,7 +103,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Passwort"
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 pl-6 text-sm outline-none focus:border-green-800"
+              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-2 pl-5 text-sm outline-none focus:border-green-800 sm:py-3 sm:pl-6"
             />
             <div className="mt-1 text-right">
               <Link
@@ -128,7 +126,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex min-w-[160px] justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70"
+              className="inline-flex min-w-[140px] justify-center rounded-full bg-green-700 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:min-w-[160px] sm:px-10 sm:py-3"
             >
               {loading ? "Wird geprüft..." : "Login"}
             </button>
