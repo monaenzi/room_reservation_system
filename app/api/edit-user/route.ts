@@ -13,6 +13,7 @@ const pool = mariadb.createPool({
 export async function PUT(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 
+  
   try {
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/');
@@ -25,6 +26,35 @@ export async function PUT(req: NextRequest) {
             {status: 400}
         );
     }
+
+
+
+    try{
+        conn = await pool.getConnection();
+    } catch (err) {
+        console.error("DB Verbindung fehlgeschlagen:", err);
+        return NextResponse.json(
+            {message: "Verbindung zur DB nicht möglich"},
+            {status: 500}
+        );
+    }
+
+
+
+    const userExists = await conn.query(
+        "SELECT user_id FROM users WHERE user_id = ? LIMIT 1",
+        [user_id]
+    ); 
+
+    if(!userExists) {
+        return NextResponse.json(
+            {message: "Benutzer nicht gefunden"},
+            {status: 404}
+        );
+    }
+
+
+
     return NextResponse.json(
       { message: "validation passed", user_id, fields: {first_name, last_name, email, phne_number, role} },
       { status: 200 }
