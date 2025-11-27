@@ -68,11 +68,21 @@ export async function POST(req:NextRequest) {
             );
         }
 
+        const result = await conn.query(
+            `INSERT INTO room (room_name, room_description, room_capacity, floor_number, building, created_by, is_visible) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+            [room_name, room_description || null, room_capacity || null, floor_number || null, building || null, created_by]
+        );
 
-        
+        const newRoom = await conn.query(
+            "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+            [result.insertId]
+        );
+
 
         return NextResponse.json(
-            {message: "validation passed"},
+            {message: "Raum erfolgreich erstellt",
+               room: newRoom[0] 
+            },
             {status: 200}
         );
     } catch (err) {
