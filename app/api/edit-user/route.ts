@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
+import { use } from "react";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -83,15 +84,40 @@ export async function PUT(req: NextRequest) {
         values.push(role_id);
     }
 
+    //Hash password before storing it. will be added later 
+
     values.push(user_id);
 
     const query = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`
     await conn.query(query, values);
 
+
+    const updateUser = await conn.query(
+        "SELECT user_id, username, first_name, last_name, email, phone_number, role_id FROM users WHERE user_id = ? LIMIT 1",
+        [user_id]
+    );
+
+    const userData = updateUser[0];
+    const userRole = userData.role_id === 1 ? "admin" : "user";
+
+
     return NextResponse.json(
-      { message: "validation passed", user_id, fields: {first_name, last_name, email, phone_number, role} },
+        {
+            message : "Benutzer erfolgreich aktualisiert",
+            user: {
+                user_id: userData.user_id,
+                username: userData.username,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                email: userData.email,
+                phone_number: userData.phone_number,
+                role: userRole
+            }
+        },
       { status: 200 }
     );
+
+    
   } catch (err) {
     console.error("Unerwarteter Fehler:", err);
     return NextResponse.json(
