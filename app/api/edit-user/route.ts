@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest) {
         [user_id]
     ); 
 
-    if(!userExists) {
+    if(!userExists || userExists === 0) {
         return NextResponse.json(
             {message: "Benutzer nicht gefunden"},
             {status: 404}
@@ -156,7 +156,7 @@ export async function DELETE(req: NextRequest) {
             [user_id]
         );
 
-        if(!userExists){
+        if(!userExists || userExists === 0){
             return NextResponse.json(
                 {message: "Benutzer nicht gefunden"},
                 {status: 404}
