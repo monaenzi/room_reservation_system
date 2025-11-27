@@ -83,7 +83,7 @@ export async function POST(req:NextRequest) {
             {message: "Raum erfolgreich erstellt",
                room: newRoom[0] 
             },
-            {status: 200}
+            {status: 201}
         );
     } catch (err) {
         console.error("unerwarteter Fehler:", err);
@@ -93,6 +93,24 @@ export async function POST(req:NextRequest) {
         );
     } finally{
         if (conn) conn.release();
+    } 
+}
+
+export async function GET(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try {
+        return NextResponse.json(
+            {message: "GET endpoint created"},
+            {status: 200}
+        );
+    } catch (err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Serverfehler"},
+            {status: 500}
+        );
+    } finally {
+        if (conn) conn.release();
     }
-    
 }
