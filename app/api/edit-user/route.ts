@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
-import { use } from "react";
+import bcrypt from "bcryptjs";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -84,7 +84,11 @@ export async function PUT(req: NextRequest) {
         values.push(role_id);
     }
 
-    //Hash password before storing it. will be added later 
+    if (password) {
+        const hashedPassword = await bcrypt.hash(password, 12);
+        updates.push("password_hash = ?");
+        values.push(hashedPassword);
+    }
 
     values.push(user_id);
 
@@ -127,4 +131,65 @@ export async function PUT(req: NextRequest) {
   } finally {
     if (conn) conn.release();
   }
+}
+
+export async function DELETE(req: NextRequest) {
+    let conn: mariadb.PoolConnection | undefined;
+
+    try {
+        const url = new URL(req.url);
+        const pathParts = url.pathname.split('/');
+        const user_id = pathParts[pathParts.length - 1];
+
+        try {
+            conn = await pool.getConnection();
+        } catch(err) {
+            console.error("db Verbindung fehlgeschlagen:", err);
+            return NextResponse.json(
+                {message: "Verbidung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const userExists = await conn.query(
+            "SELECT user_id, username FROM users WHERE user_id = ? LIMIT 1",
+            [user_id]
+        );
+
+        if(!userExists){
+            return NextResponse.json(
+                {message: "Benutzer nicht gefunden"},
+                {status: 404}
+            );
+        }
+
+        await conn.query(
+            "DELETE FROM booking WHERE user_id = ?",
+            [user_id]
+        );
+
+        await conn.query(
+            "DELETE FROM users WHERE user_id = ?",
+            [user_id]
+        );
+
+        return NextResponse.json(
+            {
+                message: "Benutzer erfolgreich gelöscht",
+                delete_user: {
+                    user_id: userExists[0].user_id,
+                    username: userExists[0].username
+                }
+            },
+            {status: 200}
+        );
+    } catch(err){
+        console.error("Feheler beim User Löschen", err);
+        return NextResponse.json(
+            {message: "Serverfehler"},
+            {status: 500}
+        );
+    } finally {
+        if (conn) conn.release();
+    }
 }
