@@ -96,6 +96,9 @@ export async function POST(req:NextRequest) {
     } 
 }
 
+
+
+
 export async function GET(req: NextRequest){
     let conn: mariadb.PoolConnection | undefined;
 
@@ -156,6 +159,27 @@ export async function GET(req: NextRequest){
             {status: 500}
         );
     } finally {
+        if (conn) conn.release();
+    }
+}
+
+
+
+export async function PUT(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try {
+        return NextResponse.json (
+            {message: "PUT endpoit created"},
+            {status: 200}
+        );
+    } catch (err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally{
         if (conn) conn.release();
     }
 }
