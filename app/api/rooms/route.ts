@@ -135,10 +135,17 @@ export async function GET(req: NextRequest){
         );
     }
 
+        let query = "SELECT * FROM room";
+        if (!includeHidden){
+            query += " WHERE is_visible = 1";
+        }
+            query += " ORDER BY room_name ASC";
+            const rooms = await conn.query(query);
+
         return NextResponse.json(
-            {message: "all rooms fetch not implemented yet. comes soon",
-                includeHidden,
-                room_id
+            {message: "Räume erfolgreich abgerufen",
+                rooms: rooms,
+                count: rooms.length
             },
             {status: 200}
         );
