@@ -100,8 +100,46 @@ export async function GET(req: NextRequest){
     let conn: mariadb.PoolConnection | undefined;
 
     try {
+        const { searchParams } = new URL(req.url);
+        const includeHidden = searchParams.get('includeHidden') === 'true';
+        const room_id = searchParams.get('room_id');
+
+        try{
+            conn = await pool.getConnection();
+        } catch (err) {
+            console.error("DB Verbindung fehlgeschlagen:", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        if (room_id){
+            const room = await conn.query(
+                "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+                [room_id]
+            );
+
+        if (!room || room.length === 0) {
+            return NextResponse.json(
+                {message: "Raum nicht gefunden"},
+                {status: 404}
+            );
+        }
+
         return NextResponse.json(
-            {message: "GET endpoint created"},
+            {message: "Raum erfolgreich abgerufen",
+                room: room[0]
+            },
+            {status: 200}
+        );
+    }
+
+        return NextResponse.json(
+            {message: "all rooms fetch not implemented yet. comes soon",
+                includeHidden,
+                room_id
+            },
             {status: 200}
         );
     } catch (err){
