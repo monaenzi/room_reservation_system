@@ -169,8 +169,93 @@ export async function PUT(req: NextRequest){
     let conn: mariadb.PoolConnection | undefined;
 
     try {
+
+        const {
+            room_id,
+            room_name,
+            room_description,
+            room_capacity,
+            floor_number,
+            building
+        } = await req.json();
+
+        if(!room_id){
+            return NextResponse.json(
+                {message: "Raum Id ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+        if(!room_name && !room_description && room_capacity === undefined && floor_number === undefined && !building) {
+            return NextResponse.json(
+                {message: "mindestend ein Feld muss angegeben werden"},
+                {status: 400}
+            );
+        }
+
+        try{
+            conn = await pool.getConnection();
+        } catch (err){
+            console.error("DB Verbindung fehlgeschlagen", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const roomExists = await conn.query(
+            "SELECT room_id FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
+        if(!roomExists || roomExists === 0){
+            return NextResponse.json(
+                {message: "Raum nicht gefunden"},
+                {status: 404}
+            );
+        }
+
+
+        const updates: string[] = [];
+        const values: any[] = [];
+
+        if(room_name){
+            updates.push("room_name = ?");
+            values.push(room_name);
+        }
+
+        if(room_description !== undefined){
+            updates.push("room_description = ?");
+            values.push(room_description);
+        }
+
+        if(room_capacity !== undefined){
+            updates.push("room_capacity = ?");
+            values.push(room_capacity);
+        }
+
+        if(floor_number !== undefined){
+            updates.push("floor_number = ?");
+            values.push(floor_number);
+        }
+
+        if(building !== undefined){
+            updates.push("building = ?");
+            values.push(building);
+        }
+
+        values.push(room_id);
+
+        const query = `UPDATE room SET ${updates.join(", ")} WHERE room_id = ?`;
+        await conn.query(query, values);
+
+        const updatedRoom = await conn.query(
+            "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
         return NextResponse.json (
-            {message: "PUT endpoit created"},
+            {message: "Raum wurde aktualisiert"},
             {status: 200}
         );
     } catch (err){
