@@ -378,9 +378,15 @@ export async function DELETE(req: NextRequest) {
             [room_id]
         );
 
+        await conn.query(
+            "DELETE FROM room WHERE room_id = ?",
+            [room_id]
+        );
+
 
         return NextResponse.json(
-            {message: "Raum wurde gelöscht"
+            {message: "Raum wurde gelöscht",
+            room_id: parseInt(room_id)    
             },
             {status: 200}
         );
