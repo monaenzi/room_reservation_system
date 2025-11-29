@@ -208,7 +208,7 @@ export async function PUT(req: NextRequest){
             [room_id]
         );
 
-        if(!roomExists || roomExists === 0){
+        if(!roomExists || roomExists.length === 0){
             return NextResponse.json(
                 {message: "Raum nicht gefunden"},
                 {status: 404}
@@ -255,7 +255,9 @@ export async function PUT(req: NextRequest){
         );
 
         return NextResponse.json (
-            {message: "Raum wurde aktualisiert"},
+            {message: "Raum wurde aktualisiert",
+                room: updatedRoom[0]
+            },
             {status: 200}
         );
     } catch (err){
@@ -271,7 +273,7 @@ export async function PUT(req: NextRequest){
 
 
 
-export async function hideRoom(req: NextRequest){
+export async function PATCH(req: NextRequest){
     let conn: mariadb.PoolConnection | undefined;
 
     try{
