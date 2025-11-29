@@ -346,8 +346,33 @@ export async function DELETE(req: NextRequest) {
             );
         }
 
+        try{
+            conn = await pool.getConnection();
+        } catch(err){
+            console.error("DB Verbindung fehlgeschlagen", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const roomExists = await conn.query(
+            "SELECT room_id FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
+        if(!roomExists || roomExists.length === 0){
+            return NextResponse.json(
+                {message: "raum nicht gefunden"},
+                {status: 404}
+            )
+        }
+
+
+
         return NextResponse.json(
-            {message: "validation passed"},
+            {message: "Raum wurde gelöscht"
+            },
             {status: 200}
         );
     } catch(err){
