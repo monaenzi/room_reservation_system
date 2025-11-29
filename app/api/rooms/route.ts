@@ -1,0 +1,404 @@
+import { NextRequest, NextResponse } from "next/server";
+import mariadb from "mariadb";
+
+const pool = mariadb.createPool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_port ?? 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    connectionLimit: 5,
+});
+
+export async function POST(req:NextRequest) {
+    let conn: mariadb.PoolConnection | undefined;
+
+    try{
+
+        const {
+            room_name,
+            room_description,
+            room_capacity,
+            floor_number,
+            building,
+            created_by
+        } = await req.json();
+
+        if (!room_name){
+            return NextResponse.json(
+                {message: "Raumname ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+        if(!created_by){
+            return NextResponse.json(
+                {message: "Admin Id ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+
+        try {
+            conn = await pool.getConnection();
+        } catch (err) {
+            console.error("db Verbindung fehlgeschlagen:", err);
+            return NextResponse.json (
+                {message : "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const adminCheck = await conn.query(
+            "SELECT user_id, role_id FROM users WHERE  user_id = ? LIMIT 1",
+            [created_by]
+        );
+
+        if(!adminCheck || adminCheck.length === 0){
+            return NextResponse.json(
+                {message: "Benutzer nicht gefunden"},
+                {status: 404}
+            );
+        }
+
+        if(adminCheck[0].role_id !== 1){
+            return NextResponse.json(
+                {message: "Keine Berechtigung. Nur Administratoren können Räume erstellen"},
+                {status: 403}
+            );
+        }
+
+        const result = await conn.query(
+            `INSERT INTO room (room_name, room_description, room_capacity, floor_number, building, created_by, is_visible) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+            [room_name, room_description || null, room_capacity || null, floor_number || null, building || null, created_by]
+        );
+
+        const newRoom = await conn.query(
+            "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+            [result.insertId]
+        );
+
+
+        return NextResponse.json(
+            {message: "Raum erfolgreich erstellt",
+               room: newRoom[0] 
+            },
+            {status: 201}
+        );
+    } catch (err) {
+        console.error("unerwarteter Fehler:", err);
+        return NextResponse.json(
+            {message: "interner Serverfehler"},
+            {status: 500}
+        );
+    } finally{
+        if (conn) conn.release();
+    } 
+}
+
+
+
+
+export async function GET(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try {
+        const { searchParams } = new URL(req.url);
+        const includeHidden = searchParams.get('includeHidden') === 'true';
+        const room_id = searchParams.get('room_id');
+
+        try{
+            conn = await pool.getConnection();
+        } catch (err) {
+            console.error("DB Verbindung fehlgeschlagen:", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        if (room_id){
+            const room = await conn.query(
+                "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+                [room_id]
+            );
+
+        if (!room || room.length === 0) {
+            return NextResponse.json(
+                {message: "Raum nicht gefunden"},
+                {status: 404}
+            );
+        }
+
+        return NextResponse.json(
+            {message: "Raum erfolgreich abgerufen",
+                room: room[0]
+            },
+            {status: 200}
+        );
+    }
+
+        let query = "SELECT * FROM room";
+        if (!includeHidden){
+            query += " WHERE is_visible = 1";
+        }
+            query += " ORDER BY room_name ASC";
+            const rooms = await conn.query(query);
+
+        return NextResponse.json(
+            {message: "Räume erfolgreich abgerufen",
+                rooms: rooms,
+                count: rooms.length
+            },
+            {status: 200}
+        );
+    } catch (err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Serverfehler"},
+            {status: 500}
+        );
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+
+
+export async function PUT(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try {
+
+        const {
+            room_id,
+            room_name,
+            room_description,
+            room_capacity,
+            floor_number,
+            building
+        } = await req.json();
+
+        if(!room_id){
+            return NextResponse.json(
+                {message: "Raum Id ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+        if(!room_name && !room_description && room_capacity === undefined && floor_number === undefined && !building) {
+            return NextResponse.json(
+                {message: "mindestend ein Feld muss angegeben werden"},
+                {status: 400}
+            );
+        }
+
+        try{
+            conn = await pool.getConnection();
+        } catch (err){
+            console.error("DB Verbindung fehlgeschlagen", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const roomExists = await conn.query(
+            "SELECT room_id FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
+        if(!roomExists || roomExists.length === 0){
+            return NextResponse.json(
+                {message: "Raum nicht gefunden"},
+                {status: 404}
+            );
+        }
+
+
+        const updates: string[] = [];
+        const values: any[] = [];
+
+        if(room_name){
+            updates.push("room_name = ?");
+            values.push(room_name);
+        }
+
+        if(room_description !== undefined){
+            updates.push("room_description = ?");
+            values.push(room_description);
+        }
+
+        if(room_capacity !== undefined){
+            updates.push("room_capacity = ?");
+            values.push(room_capacity);
+        }
+
+        if(floor_number !== undefined){
+            updates.push("floor_number = ?");
+            values.push(floor_number);
+        }
+
+        if(building !== undefined){
+            updates.push("building = ?");
+            values.push(building);
+        }
+
+        values.push(room_id);
+
+        const query = `UPDATE room SET ${updates.join(", ")} WHERE room_id = ?`;
+        await conn.query(query, values);
+
+        const updatedRoom = await conn.query(
+            "SELECT * FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
+        return NextResponse.json (
+            {message: "Raum wurde aktualisiert",
+                room: updatedRoom[0]
+            },
+            {status: 200}
+        );
+    } catch (err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally{
+        if (conn) conn.release();
+    }
+}
+
+
+
+export async function PATCH(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try{
+        const {searchParams} = new URL(req.url);
+        const room_id = searchParams.get('room_id');
+
+
+    if(!room_id) {
+        return NextResponse.json(
+            {message: "Raum id ist erforderlich"},
+            {status:400}
+        );
+    }
+
+    try{
+        conn = await pool.getConnection();
+    } catch(err){
+        console.error("DB Verbindung fehlgeschlagen", err);
+        return NextResponse.json(
+            {message: "Verbindung zur DB nicht möglch"},
+            {status: 500}
+        );
+    }
+
+    const roomExists = await conn.query(
+        "SELECT room_id, is_visible FROM room WHERE room_id = ? LIMIT 1",
+        [room_id]
+    );
+
+    if(!roomExists || roomExists.length === 0){
+        return NextResponse.json(
+            {message: "Raum nicht gefunden"},
+            {status: 404}
+        );
+    }
+
+    await conn.query(
+        "UPDATE room SET is_visible = 0 WHERE room_id = ?",
+        [room_id]
+    );
+
+    return NextResponse.json(
+        { message: "Raum ist nicht mehr sichtbar",
+            room_id: parseInt(room_id)
+        },
+        {status: 200}
+    );
+    } catch(err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+
+
+export async function DELETE(req: NextRequest) {
+    let conn: mariadb.PoolConnection | undefined;
+
+    try{
+        const {searchParams } = new URL(req.url);
+        const room_id = searchParams.get('room_id');
+
+        if(!room_id){
+            return NextResponse.json(
+                {message: "room id ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+        try{
+            conn = await pool.getConnection();
+        } catch(err){
+            console.error("DB Verbindung fehlgeschlagen", err);
+            return NextResponse.json(
+                {message: "Verbindung zur DB nicht möglich"},
+                {status: 500}
+            );
+        }
+
+        const roomExists = await conn.query(
+            "SELECT room_id FROM room WHERE room_id = ? LIMIT 1",
+            [room_id]
+        );
+
+        if(!roomExists || roomExists.length === 0){
+            return NextResponse.json(
+                {message: "raum nicht gefunden"},
+                {status: 404}
+            )
+        }
+
+        await conn.query(
+            "DELETE FROM booking WHERE timeslot_id IN (SELECT timeslot_id FROM timeslot WHERE room_id = ?)",
+            [room_id]
+        );
+
+        await conn.query(
+            "DELETE FROM timeslot WHERE room_id = ?",
+            [room_id]
+        );
+
+        await conn.query(
+            "DELETE FROM room WHERE room_id = ?",
+            [room_id]
+        );
+
+
+        return NextResponse.json(
+            {message: "Raum wurde gelöscht",
+            room_id: parseInt(room_id)    
+            },
+            {status: 200}
+        );
+    } catch(err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally{
+        if (conn) conn.release();
+    }
+}
