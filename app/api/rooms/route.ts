@@ -332,3 +332,31 @@ export async function hideRoom(req: NextRequest){
 
 
 
+export async function DELETE(req: NextRequest) {
+    let conn: mariadb.PoolConnection | undefined;
+
+    try{
+        const {searchParams } = new URL(req.url);
+        const room_id = searchParams.get('room_id');
+
+        if(!room_id){
+            return NextResponse.json(
+                {message: "room id ist erforderlich"},
+                {status: 400}
+            );
+        }
+
+        return NextResponse.json(
+            {message: "validation passed"},
+            {status: 200}
+        );
+    } catch(err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally{
+        if (conn) conn.release();
+    }
+}
