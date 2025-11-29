@@ -47,6 +47,7 @@ export default function NavBar() {
     { href: "/", label: "Startseite" },
     { href: "/rooms", label: "Räume" },
     { href: "/calender", label: "Kalender" },
+    {href: "/admin/users/calendar", label: "Kalender"} //this line is here because user view isnt here yet 
   ];
 
 
