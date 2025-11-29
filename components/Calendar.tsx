@@ -93,7 +93,7 @@ export default function Calendar() {
     const isCurrentWeek = useMemo(() => currentWeekStart.toDateString() === getMonday(new Date()).toDateString(), [currentWeekStart]);
 
     return (
-        <main className="flex justify-center px-2 pt-20 md:px-4 pb-2 md:pb-10 relative">
+        <main className="flex justify-center px-2 pt-45 md:px-4 pb-2 md:pb-10 relative">
             <div className="w-full max-w-5xl rounded-2xl md:rounded-3xl bg-[#dfeedd] px-2 md:px-8 pb-2 md:pb-10 pt-2 md:pt-8 shadow-xl">
                 
                 {/* Room Selection & Navigation */}
