@@ -368,6 +368,15 @@ export async function DELETE(req: NextRequest) {
             )
         }
 
+        await conn.query(
+            "DELETE FROM booking WHERE timeslot_id IN (SELECT timeslot_id FROM timeslot WHERE room_id = ?)",
+            [room_id]
+        );
+
+        await conn.query(
+            "DELETE FROM timeslot WHERE room_id = ?",
+            [room_id]
+        );
 
 
         return NextResponse.json(
