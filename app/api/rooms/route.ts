@@ -268,3 +268,67 @@ export async function PUT(req: NextRequest){
         if (conn) conn.release();
     }
 }
+
+
+
+export async function hideRoom(req: NextRequest){
+    let conn: mariadb.PoolConnection | undefined;
+
+    try{
+        const {searchParams} = new URL(req.url);
+        const room_id = searchParams.get('room_id');
+
+
+    if(!room_id) {
+        return NextResponse.json(
+            {message: "Raum id ist erforderlich"},
+            {status:400}
+        );
+    }
+
+    try{
+        conn = await pool.getConnection();
+    } catch(err){
+        console.error("DB Verbindung fehlgeschlagen", err);
+        return NextResponse.json(
+            {message: "Verbindung zur DB nicht möglch"},
+            {status: 500}
+        );
+    }
+
+    const roomExists = await conn.query(
+        "SELECT room_id, is_visible FROM room WHERE room_id = ? LIMIT 1",
+        [room_id]
+    );
+
+    if(!roomExists || roomExists.length === 0){
+        return NextResponse.json(
+            {message: "Raum nicht gefunden"},
+            {status: 404}
+        );
+    }
+
+    await conn.query(
+        "UPDATE room SET is_visible = 0 WHERE room_id = ?",
+        [room_id]
+    );
+
+    return NextResponse.json(
+        { message: "Raum ist nicht mehr sichtbar",
+            room_id: parseInt(room_id)
+        },
+        {status: 200}
+    );
+    } catch(err){
+        console.error("unerwarteter Fehler", err);
+        return NextResponse.json(
+            {message: "interner Fehler"},
+            {status: 500}
+        );
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
+
+
