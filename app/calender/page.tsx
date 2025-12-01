@@ -84,6 +84,7 @@ export default function RoomsPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const [showPopup, setShowPopup] = useState(false);
+    const [showBlockPopup, setShowBlockPopup] = useState(false);
 
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
@@ -403,15 +404,16 @@ export default function RoomsPage() {
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
-                    <button
+                    <button onClick={() => setShowBlockPopup(true)}
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Tag/Zeitslots sperren
                     </button>
+
                 </div>
             </div>
             {showPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-xl shadow-lg max-w-2xl w-full">
+                    <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl min-h-[600px] max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
 
                             <h3 className="text-lg font-semibold">Offene Anfragen</h3>
@@ -424,5 +426,23 @@ export default function RoomsPage() {
                         </div>
                     </div>
                 </div>
-            )}        </>)
+            )}
+            {showBlockPopup && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl min-h-[600px] max-h-[80vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+
+                            <h3 className="text-lg font-semibold">Tag/Zeitslots sperren</h3>
+                            <button
+                                onClick={() => setShowBlockPopup(false)}
+                                className="text-[#0f692b] font-bold text-xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+        </>)
 }
