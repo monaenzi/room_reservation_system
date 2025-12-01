@@ -49,7 +49,6 @@ export default function NavBar() {
     { href: "/calender", label: "Kalender" },
   ];
 
-
   const adminLinks = 
     role === "admin"
       ? [

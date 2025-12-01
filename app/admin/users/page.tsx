@@ -88,7 +88,7 @@ export default function AdminUsersPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="benutzer@fh-joanneum.at"
-              pattern="^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+              pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" /*"^[^@\s]+@[^@\s]+\.[^@\s]+$"*/
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
             />
           </div>
