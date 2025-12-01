@@ -46,8 +46,7 @@ export default function NavBar() {
   const commonLinks = [
     { href: "/", label: "Startseite" },
     { href: "/rooms", label: "Räume" },
-    { href: "/calender", label: "Kalender" },
-    {href: "/admin/users/calendar", label: "Kalender"} //this line is here because user view isnt here yet 
+    { href: "/calender", label: "Kalender" }, 
   ];
 
   const adminLinks = 
