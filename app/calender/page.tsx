@@ -83,6 +83,8 @@ export default function RoomsPage() {
     const [role, setRole] = useState<Role>('guest');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+    const [showPopup, setShowPopup] = useState(false);
+
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
@@ -385,9 +387,8 @@ export default function RoomsPage() {
             )}
 
             <div
-                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${
-                    isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-                }`}
+                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                    }`}
             >
                 <div className="flex flex-col h-full p-4">
                     <button
@@ -398,14 +399,30 @@ export default function RoomsPage() {
                     </button>
 
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
-                    <button className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                    <button onClick={() => setShowPopup(true)}
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
-                    <button className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                    <button
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Tag/Zeitslots sperren
                     </button>
                 </div>
             </div>
-        </>
-    );
+            {showPopup && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-xl shadow-lg max-w-2xl w-full">
+                        <div className="flex justify-between items-center mb-4">
+
+                            <h3 className="text-lg font-semibold">Offene Anfragen</h3>
+                            <button
+                                onClick={() => setShowPopup(false)}
+                                className="text-[#0f692b] font-bold text-xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}        </>)
 }
