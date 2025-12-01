@@ -11,6 +11,7 @@ export default function NavBar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [role, setRole] = useState<Role>("guest");
+  const [username, setUsername] = useState<string>("");
   const router = useRouter();
 
   /*     const navLinks = [
@@ -25,13 +26,17 @@ export default function NavBar() {
 
     const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
     const storedRole = (localStorage.getItem("userRole") as Role) || "guest";
+    const storedUsername = localStorage.getItem("username") || "";
 
     if (!isLoggedIn) {
       setRole("guest");
+      setUsername("");
     } else if (storedRole === "admin") {
       setRole("admin");
+      setUsername(storedUsername);
     } else {
       setRole("user");
+      setUsername(storedUsername);
     }
   }, [pathname]);
 
@@ -92,14 +97,22 @@ export default function NavBar() {
             <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
           </Link>
         ) : (
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label="Logout"
-            className="hidden md:flex items-center"
-          >
-            <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
-          </button>
+          <div className="hidden md:flex flex-col items-center justify-center gap-0.5">
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Logout"
+            >
+              <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
+            </button>
+            {username && (
+              <span className="text-xs font-semibold text-green-800 leading-tight">
+                Hallo, {username}!
+              </span>
+            )}
+
+
+          </div>
         )}
 
         <button type="button" className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-700" aria-label="Navigation umschalten" aria-expanded={isOpen} onClick={() => setIsOpen((prev) => !prev)}>
@@ -114,6 +127,11 @@ export default function NavBar() {
       {isOpen && (
         <div className="md:hidden bg-white/95 backdrop-blur border-t border-gray-200">
           <div className="mmax-w-7xl mx-auto px-4 py-3 flex flex-col items-center">
+            {role !== "guest" && username && (
+              <div className="mb-2 text-green-800 font-semi-bold border-b border-gray-200 pb-2 w-full text-center">
+                Hallo, {username}!
+              </div>
+            )}
             <ul className="flex flex-col gap-3 text-gray-800 text-base items-center text-center">
               {navLinks.map((link) => (
                 <li key={link.href}>
