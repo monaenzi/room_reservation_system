@@ -97,7 +97,7 @@ export default function ChangePasswordPage() {
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
             </label>
@@ -105,9 +105,10 @@ export default function ChangePasswordPage() {
               type="email"
               required
               value={email}
+              autoComplete="email"
               onChange={(e) => setEmail(e.target.value)}
               placeholder="benutzer@fh-joanneum.at"
-              pattern="^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+              pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
             />
           </div>
@@ -118,6 +119,7 @@ export default function ChangePasswordPage() {
               type="password"
               required
               value={oldPassword}
+              autoComplete="new-password"
               onChange={(e) => setOldPassword(e.target.value)}
               placeholder="aktuelles Passwort"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
@@ -130,6 +132,7 @@ export default function ChangePasswordPage() {
               type="password"
               required
               value={newPassword}
+              autoComplete="new-password"
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="neues Passwort"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
@@ -142,6 +145,7 @@ export default function ChangePasswordPage() {
               type="password"
               required
               value={newPasswordConfirm}
+              autoComplete="new-password"
               onChange={(e) => setNewPasswordConfirm(e.target.value)}
               placeholder="neues Passwort wiederholen"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
