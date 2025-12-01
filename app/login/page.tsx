@@ -89,7 +89,7 @@ export default function LoginPage() {
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" autoComplete="off">
           <div className="relative">
             <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
               <img
@@ -101,6 +101,7 @@ export default function LoginPage() {
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Beispiel@fh-joanneum.at"
@@ -121,6 +122,7 @@ export default function LoginPage() {
               type="password"
               required
               value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Passwort"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-2 pl-5 text-sm outline-none focus:border-green-800 sm:py-3 sm:pl-6"

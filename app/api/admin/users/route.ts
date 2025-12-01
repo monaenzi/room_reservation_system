@@ -48,11 +48,9 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          message: "User erfolgreich angelegt.",
-          user_id: result.insertId,
-          defaultPassword: DEFAULT_PASSWORD, 
-        },
+        { message: "User erfolgreich angelegt.",
+          user_id: Number(result.insertId),
+          defaultPassword: DEFAULT_PASSWORD},
         { status: 201 }
       );
     } catch (err: any) {
