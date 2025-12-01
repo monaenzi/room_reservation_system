@@ -42,10 +42,12 @@ export default function LoginPage() {
       
       const mustChangePassword = data.mustChangePassword;
       const role = data.role || "user";
+      const username = data.username || "";
 
       if (typeof window !== "undefined") {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("userRole", role);
+        localStorage.setItem("username", username);
       }
 
       if (mustChangePassword) {

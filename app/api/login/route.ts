@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   
     const rows = await conn.query(
-      "SELECT user_id, email, password_hash, first_login, account_deactivated, role_id FROM users WHERE email = ? LIMIT 1",
+      "SELECT user_id, email, username, password_hash, first_login, account_deactivated, role_id FROM users WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -75,6 +75,7 @@ const role = user.role_id === 1 ? "admin" : "user";
       { message: "Login erfolgreich.",
       mustChangePassword,
       role,
+      username: user.username,
   },
       { status: 200 }
     );
