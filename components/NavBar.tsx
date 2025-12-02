@@ -59,6 +59,8 @@ export default function NavBar() {
       ? [
         { href: "/admin/users", label: "Userverwaltung" },
         { href: "/admin/tools", label: "Admintools" },
+        //{ href: "/user/calendar", label: "Usercal" }, Nur zum live mitverfolgen der Änderungen
+
         // href: "/admin/calendar", label: "Kalender" }, // Hier muss noch eingerichtet werden, dass admin nur diese Kalenderansicht hat und nicht auch den default Kalender aus den commonlinks
       ]
       : [];
