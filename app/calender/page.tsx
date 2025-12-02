@@ -514,8 +514,7 @@ export default function RoomsPage() {
                         id="block-all-day"
                         checked={blockAllDay}
                         onChange={() => setBlockAllDay(!blockAllDay)}
-                        className="w-5 h-5 rounded border-2 border-gray-300 text-[#0f692b] 
-                                   focus:ring-[#0f692b] focus:ring-2"
+                     className="w-5 h-5 accent-[#0f692b] cursor-pointer"
                     />
                     <label htmlFor="block-all-day" className="text-sm font-medium text-gray-700">
                         Ganzer Tag sperren
