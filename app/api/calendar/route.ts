@@ -59,6 +59,32 @@ export async function POST(req: NextRequest) {
     if (existing.length > 0) {
       return NextResponse.json({ message: "Dieser Zeitraum ist bereits reserviert oder kann nicht gebucht werden." }, { status: 409 });
     }
+
+    // Timeslot erstellen (status = 2 → reserviert)
+    const timeslotResult: InsertResult = await conn.query(
+      "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
+      [room_id, slot_date, start_time, end_time]
+    );
+    const timeslot_id = timeslotResult.insertId;
+    if (!timeslot_id) throw new Error("timeslot_id konnte nicht ermittelt werden.");
+
+    // Booking erstellen
+    const bookingResult: InsertResult = await conn.query(
+      "INSERT INTO booking (user_id, timeslot_id, reason, booking_status) VALUES (?, ?, ?, 1)",
+      [user_id, timeslot_id, reason]
+    );
+    const booking_id = bookingResult.insertId;
+    if (!booking_id) throw new Error("booking_id konnte nicht ermittelt werden.");
+
+    return NextResponse.json(
+      { message: "Timeslot erfolgreich erstellt und reserviert.", timeslot_id, booking_id },
+      { status: 200 }
+    );
+
+  } catch (err) {
+    console.error("Fehler beim Erstellen von Timeslot & Booking:", err);
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
+  
   } finally {
     if (conn) conn.release();
   }
