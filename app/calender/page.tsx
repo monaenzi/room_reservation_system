@@ -413,15 +413,19 @@ export default function RoomsPage() {
             </div>
             {showPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl min-h-[600px] max-h-[80vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
+                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Anfragen verwalten</h2>
 
-                            <h3 className="text-lg font-semibold">Offene Anfragen</h3>
+                        <div className="space-y-3 mb-6 flex-1 overflow-y-auto">
+                            {/* Hier DB-Daten einfügen */}
+                        </div>
+
+                        <div className="flex gap-3 mt-auto">
                             <button
                                 onClick={() => setShowPopup(false)}
-                                className="text-[#0f692b] font-bold text-xl"
+                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
-                                ✕
+                                Schließen
                             </button>
                         </div>
                     </div>
@@ -429,15 +433,14 @@ export default function RoomsPage() {
             )}
             {showBlockPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl min-h-[600px] max-h-[80vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-
-                            <h3 className="text-lg font-semibold">Tag/Zeitslots sperren</h3>
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
+                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Tag/Slots sperren</h2>
+                        <div className="flex gap-3 mt-auto">
                             <button
                                 onClick={() => setShowBlockPopup(false)}
-                                className="text-[#0f692b] font-bold text-xl"
+                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
-                                ✕
+                                Schließen
                             </button>
                         </div>
                     </div>
