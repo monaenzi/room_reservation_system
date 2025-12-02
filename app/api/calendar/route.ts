@@ -10,7 +10,6 @@ const pool = mariadb.createPool({
   connectionLimit: 5,
 });
 
-// Typ für Timeslot
 type Timeslot = {
   timeslot_id: number;
   room_id: number;
@@ -20,7 +19,6 @@ type Timeslot = {
   timeslot_status: number;
 };
 
-// Typ für Insert-Ergebnis
 type InsertResult = {
   insertId: number;
   affectedRows?: number;
@@ -50,10 +48,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Datum normalisieren (nur YYYY-MM-DD)
+    const normalizedDate = slot_date.split("T")[0];
+
     // Prüfen, ob Timeslot schon existiert
     const existing: Timeslot[] = await conn.query(
       "SELECT * FROM timeslot WHERE room_id=? AND slot_date=? AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))",
-      [room_id, slot_date, end_time, end_time, start_time, start_time]
+      [room_id, normalizedDate, end_time, end_time, start_time, start_time]
     );
 
     if (existing.length > 0) {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     // Timeslot erstellen (status = 2 → reserviert)
     const timeslotResult: InsertResult = await conn.query(
       "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
-      [room_id, slot_date, start_time, end_time]
+      [room_id, normalizedDate, start_time, end_time]
     );
     const timeslot_id = timeslotResult.insertId;
     if (!timeslot_id) throw new Error("timeslot_id konnte nicht ermittelt werden.");
