@@ -278,7 +278,7 @@ export default function RoomsOverviewPage() {
             {!isSidebarOpen && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed right-0 top-1/5 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                    className="fixed right-0 top-1/5 translate-x-1 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
                 >
                     <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
                     <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
