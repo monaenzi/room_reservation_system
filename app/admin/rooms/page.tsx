@@ -34,11 +34,46 @@ const MOCK_ROOMS: Room[] = [
         is_visible: true,
         image_url: '/pictures/room2.jpg',
     },
+
+    {
+        room_id: 3,
+        room_name: 'Raum 3',
+        description: 'Mittlerer Konferenzraum mit Whitboard und Beamer',
+        capacity: 12,
+        floor_number: 1,
+        building: 'WS46b',
+        is_visible: true,
+    },
+
+    {
+        room_id: 4,
+        room_name: 'Raum 4',
+        description: 'Kreativraum mit flexiblem Mobiliar',
+        capacity: 6,
+        floor_number: 1,
+        building: 'WS46b',
+        is_visible: true,
+    },
+
+    {
+        room_id: 5,
+        room_name: 'Raum 5',
+        description: 'Stiller Arbeitsraum für konzentriertes Arbeiten',
+        capacity: 4,
+        floor_number: 2,
+        building: 'WS46b',
+        is_visible: true,
+    },
 ];
 
 export default function RoomsOverviewPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+
+    const [isDeleteRoomOpen, setIsDeleteRoomOpen] = useState(false);
+    const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
+
+
     const [roomName, setRoomName] = useState('');
     const [roomDescription, setRoomDescription] = useState('');
     const [roomCapacity, setRoomCapacity] = useState('');
@@ -47,7 +82,8 @@ export default function RoomsOverviewPage() {
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     
-    const rooms = MOCK_ROOMS.filter((r) => r.is_visible);
+    const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS.filter((r) => r.is_visible));
+    //const rooms = MOCK_ROOMS.filter((r) => r.is_visible);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -62,19 +98,50 @@ export default function RoomsOverviewPage() {
     };
 
     const handleAddRoom = () => {
-        // Hier würde die Logik zum Hinzufügen des Raums stehen
-        console.log({
-            name: roomName,
-            description: roomDescription,
-            capacity: parseInt(roomCapacity) || null,
-            building: roomBuilding,
-            floor: parseInt(roomFloor) || null,
-            image: selectedImage
-        });
-        
-        // Reset form and close popup
+        const newRoomId = rooms.length > 0 ? Math.max(...rooms.map(r => r.room_id)) + 1:1;
+
+        const newRoom: Room = {
+            room_id: newRoomId,
+            room_name: roomName || `Raum ${newRoomId}`,
+            description: roomDescription || null,
+            capacity: roomCapacity ? parseInt(roomCapacity) : null,
+            floor_number: roomFloor ? parseInt(roomFloor) : null,
+            building: roomBuilding || null,
+            is_visible: true,
+        };
+
+        setRooms(prevRooms => [...prevRooms, newRoom]);
+
         resetForm();
         setIsAddRoomOpen(false);
+    };
+
+    const handleRoomSelection = (roomId: number) => {
+        setSelectedRooms(prev => {
+            if(prev.includes(roomId)){
+                return prev.filter(id => id !== roomId);
+            } else {
+                return [...prev, roomId];
+            }
+        });
+    };
+
+    const handleDeleteRooms = () => {
+        setRooms(prevRooms => prevRooms.filter(room => !selectedRooms.includes(room.room_id)));
+
+        setSelectedRooms([]);
+        setIsDeleteRoomOpen(false);
+    };
+    
+
+    const handleSelectAll = () => {
+        if (selectedRooms.length === rooms.length) {
+            // Alle abwählen
+            setSelectedRooms([]);
+        } else {
+            // Alle auswählen
+            setSelectedRooms(rooms.map(room => room.room_id));
+        }
     };
 
     const resetForm = () => {
@@ -90,6 +157,11 @@ export default function RoomsOverviewPage() {
     const handleCancel = () => {
         resetForm();
         setIsAddRoomOpen(false);
+    };
+
+    const handleCancelDelete = () => {
+        setSelectedRooms([]);
+        setIsDeleteRoomOpen(false);
     };
 
     return (
@@ -200,12 +272,20 @@ export default function RoomsOverviewPage() {
                     
                     <div className="space-y-2">
                         <button 
-                            onClick={() => setIsAddRoomOpen(true)}
+                            onClick={() => { 
+                                setIsAddRoomOpen(true);
+                                setIsSidebarOpen(false);
+                            }}
                             className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors"
                         >
                             Raum hinzufügen
                         </button>
-                        <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
+
+                        <button onClick={() => {
+                            setIsDeleteRoomOpen(true);
+                            setIsSidebarOpen(false);
+                        }}
+                        className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
                             Raum löschen
                         </button>
                         <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
@@ -305,6 +385,110 @@ export default function RoomsOverviewPage() {
                         </div>
                     </div>
             )}
-            </>
+
+            {isDeleteRoomOpen && (
+                 <div 
+                    className="fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-4"
+                    onClick={handleCancelDelete}
+                >
+                    <div 
+                        className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Popup Header */}
+                        <div className="p-6 border-b border-gray-200">
+                            <h2 className="text-2xl font-bold text-[#0f692b] text-center">
+                                Raum löschen
+                            </h2>
+                        </div>
+
+                        {/* Popup Content */}
+                        <div className="p-6">
+                            {/* Select All Checkbox */}
+                            <div className="mb-4 flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="select-all"
+                                    checked={selectedRooms.length === rooms.length && rooms.length > 0}
+                                    onChange={handleSelectAll}
+                                    className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                />
+                                <label htmlFor="select-all" className="ml-3 text-sm font-medium text-gray-700">
+                                    Alle auswählen
+                                </label>
+                            </div>
+
+                            {/* Room List */}
+                            <div className="space-y-3 max-h-80 overflow-y-auto">
+                                {rooms.map((room) => (
+                                    <div 
+                                        key={room.room_id}
+                                        className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            id={`room-${room.room_id}`}
+                                            checked={selectedRooms.includes(room.room_id)}
+                                            onChange={() => handleRoomSelection(room.room_id)}
+                                            className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                        />
+                                        <label 
+                                            htmlFor={`room-${room.room_id}`}
+                                            className="ml-3 flex-1 cursor-pointer"
+                                        >
+                                            <span className="font-medium text-gray-800">
+                                                {room.room_name}
+                                            </span>
+                                            {room.building && (
+                                                <span className="ml-2 text-sm text-gray-500">
+                                                    ({room.building}, Stock {room.floor_number})
+                                                </span>
+                                            )}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Selected Count */}
+                            {selectedRooms.length > 0 && (
+                                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <p className="text-sm text-red-700 font-medium">
+                                        {selectedRooms.length} Raum{selectedRooms.length !== 1 ? 'e' : ''} zum Löschen ausgewählt
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Warning Message */}
+                            <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                                <p className="text-sm text-yellow-700">
+                                    Gelöschte Räume können nicht wiederhergestellt werden.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Popup Footer */}
+                        <div className="p-6 border-t border-gray-200 flex gap-3">
+                            <button
+                                onClick={handleCancelDelete}
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Abbrechen
+                            </button>
+                            <button
+                                onClick={handleDeleteRooms}
+                                disabled={selectedRooms.length === 0}
+                                className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+                                    selectedRooms.length === 0
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-red-600 text-white hover:bg-red-700'
+                                }`}
+                            >
+                                Löschen ({selectedRooms.length})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
