@@ -83,6 +83,9 @@ export default function RoomsPage() {
     const [role, setRole] = useState<Role>('guest');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+    const [showPopup, setShowPopup] = useState(false);
+    const [showBlockPopup, setShowBlockPopup] = useState(false);
+
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
@@ -385,9 +388,8 @@ export default function RoomsPage() {
             )}
 
             <div
-                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${
-                    isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-                }`}
+                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                    }`}
             >
                 <div className="flex flex-col h-full p-4">
                     <button
@@ -398,14 +400,52 @@ export default function RoomsPage() {
                     </button>
 
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
-                    <button className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                    <button onClick={() => setShowPopup(true)}
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
-                    <button className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                    <button onClick={() => setShowBlockPopup(true)}
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Tag/Zeitslots sperren
                     </button>
+
                 </div>
             </div>
-        </>
-    );
+            {showPopup && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
+                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Anfragen verwalten</h2>
+
+                        <div className="space-y-3 mb-6 flex-1 overflow-y-auto">
+                            {/* Hier DB-Daten einfügen */}
+                        </div>
+
+                        <div className="flex gap-3 mt-auto">
+                            <button
+                                onClick={() => setShowPopup(false)}
+                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                            >
+                                Schließen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showBlockPopup && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
+                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Tag/Slots sperren</h2>
+                        <div className="flex gap-3 mt-auto">
+                            <button
+                                onClick={() => setShowBlockPopup(false)}
+                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                            >
+                                Schließen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+        </>)
 }
