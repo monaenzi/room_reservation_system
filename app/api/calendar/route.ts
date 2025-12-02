@@ -84,7 +84,26 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Fehler beim Erstellen von Timeslot & Booking:", err);
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
-  
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+export async function GET() {
+  let conn: mariadb.PoolConnection | undefined;
+
+  try {
+    conn = await pool.getConnection();
+
+    // Alle reservierten Timeslots abrufen
+    const timeslots: (Timeslot & { user_id?: number; reason?: string })[] = await conn.query(
+      "SELECT t.*, b.user_id, b.reason FROM timeslot t LEFT JOIN booking b ON t.timeslot_id = b.timeslot_id WHERE t.timeslot_status=2"
+    );
+
+    return NextResponse.json(timeslots);
+  } catch (err) {
+    console.error("Fehler beim Laden der Timeslots:", err);
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
   } finally {
     if (conn) conn.release();
   }
