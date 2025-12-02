@@ -38,7 +38,59 @@ const MOCK_ROOMS: Room[] = [
 
 export default function RoomsOverviewPage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+    const [roomName, setRoomName] = useState('');
+    const [roomDescription, setRoomDescription] = useState('');
+    const [roomCapacity, setRoomCapacity] = useState('');
+    const [roomBuilding, setRoomBuilding] = useState('');
+    const [roomFloor, setRoomFloor] = useState('');
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    
     const rooms = MOCK_ROOMS.filter((r) => r.is_visible);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleAddRoom = () => {
+        // Hier würde die Logik zum Hinzufügen des Raums stehen
+        console.log({
+            name: roomName,
+            description: roomDescription,
+            capacity: parseInt(roomCapacity) || null,
+            building: roomBuilding,
+            floor: parseInt(roomFloor) || null,
+            image: selectedImage
+        });
+        
+        // Reset form and close popup
+        resetForm();
+        setIsAddRoomOpen(false);
+    };
+
+    const resetForm = () => {
+        setRoomName('');
+        setRoomDescription('');
+        setRoomCapacity('');
+        setRoomBuilding('');
+        setRoomFloor('');
+        setSelectedImage(null);
+        setImagePreview(null);
+    };
+
+    const handleCancel = () => {
+        resetForm();
+        setIsAddRoomOpen(false);
+    };
 
     return (
         <>
@@ -147,7 +199,10 @@ export default function RoomsOverviewPage() {
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Raumverwaltung</h2>
                     
                     <div className="space-y-2">
-                        <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
+                        <button 
+                            onClick={() => setIsAddRoomOpen(true)}
+                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors"
+                        >
                             Raum hinzufügen
                         </button>
                         <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
@@ -162,6 +217,94 @@ export default function RoomsOverviewPage() {
                     </div>
                 </div>
             </div>
-        </>
+
+            {/* Add Room Popup Overlay */}
+            {isAddRoomOpen && (
+                <div  className="fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-4"
+                    onClick={handleCancel}>
+                
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}>
+
+                            <div className="p-6 border-b border-gray-200">
+                                <h2 className="text-2xl font-bold text-[#0f692b] text-center">Raum hinzufügen</h2>
+                            </div>
+
+
+                            <div className='p-6 space-y-4'>
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 mb-2'>Name</label>
+                                    <input type="text" value={roomName} onChange={(e) => setRoomName(e.target.value)} className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition' placeholder='Raumname eingeben'/>
+                                </div>
+
+                                <div>
+                                    <h3 className='block text-sm font-medium text-gray-700 mb-2'>Infos</h3>
+                                    <textarea value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)}
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition h-32'
+                                        placeholder='Beschreibung des Raums'/>
+                                </div>
+
+                                <div>
+                                    <h3 className='block text-sm font-medium text-gray-700 mb-2'> Bild hochladen</h3>
+                                    <div className='border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-[#0f692b] transition-colors cursor-pointer'>
+                                        <input type="file" id='room-image' accept='image/*' onChange={handleImageUpload} className='hidden'/>
+                                        <label htmlFor="room-image" className='cursor-pointer block'>
+                                            {imagePreview ? (
+                                                <div className='flex flex-col items-center'>
+                                                    <img src={imagePreview} alt="Vorschau" className='w-32 h-32 object-cover rounded-lg mb-2'/>
+                                                    <span className='text-sm text-[#0f692b] font-medium'>Bild ersetzen</span>
+                                                </div>
+                                            ) : (
+                                                <div className='flex flex-col items-center'>
+                                                    <div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2'>
+                                                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    </div>
+                                                    <span className='text-sm text-gray-600'>Klicken Sie hier, um ein Bild hochzuladen</span>
+                                                </div>
+                                            )}
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className='grid grid-cols-2 gap-4'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-gray-700 mb-2'>Kapazität</label>
+                                        <input type="number"
+                                                value={roomCapacity}
+                                                onChange={(e) => setRoomCapacity(e.target.value)} 
+                                                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition'
+                                                placeholder='Anzahl'/>
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-gray-700 mb-2'>Gebäude</label>
+                                        <input type="text"
+                                                value={roomBuilding}
+                                                onChange={(e) => setRoomBuilding(e.target.value)}
+                                                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition'
+                                                placeholder='z.B. WS46b' />
+                                    </div>
+                                    <div className='col-span-2'>
+                                        <label className='"block text-sm font-medium text-gray-700 mb-2'>Etage</label>
+                                        <input type="number"
+                                        value={roomFloor}
+                                        onChange={(e) => setRoomFloor(e.target.value)} 
+                                        className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition'
+                                        placeholder='Stockwerk'/>
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div className='p-6 border-t border-gray-200 flex gap-3'>
+                                <button onClick={handleCancel}
+                                className='flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors'>Abbrechen</button>
+                                <button onClick={handleAddRoom}
+                                className='flex-1 px-4 py-3 bg-[#0f692b] text-white font-medium rounded-lg hover:bg-green-800 transition-colors'>Hinzufügen</button>
+                            </div>
+                        </div>
+                    </div>
+            )}
+            </>
     );
 }
