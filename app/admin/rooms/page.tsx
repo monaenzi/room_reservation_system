@@ -73,6 +73,9 @@ export default function RoomsOverviewPage() {
     const [isDeleteRoomOpen, setIsDeleteRoomOpen] = useState(false);
     const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
 
+    const [isHideRoomOpen, setIsHideRoomOpen] = useState(false);
+    const [roomsToHide, setRoomsToHide] = useState<number[]>([]);
+
 
     const [roomName, setRoomName] = useState('');
     const [roomDescription, setRoomDescription] = useState('');
@@ -144,6 +147,38 @@ export default function RoomsOverviewPage() {
         }
     };
 
+    const handleHideRoomSelection = (roomId: number) => {
+        setRoomsToHide(prev => {
+            if(prev.includes(roomId)){
+                return prev.filter(id => id !== roomId);
+            } else {
+                return [...prev, roomId];
+            }
+        });
+    };
+
+    const handleHideRooms = () => {
+        setRooms(prevRooms => prevRooms.map(room => roomsToHide.includes(room.room_id) ? {...room, is_visible:false} : room));
+        setRoomsToHide([]);
+        setIsHideRoomOpen(false);
+    };
+
+     const handleUnhideRooms = () => {
+        setRooms(prevRooms => prevRooms.map(room => 
+            roomsToHide.includes(room.room_id) ? {...room, is_visible: true} : room));
+        setRoomsToHide([]);
+        setIsHideRoomOpen(false);
+    };
+
+
+    const handleSelectAllHide = () => {
+        if (roomsToHide.length === rooms.length){
+            setRoomsToHide([]);
+        } else{
+            setRoomsToHide(rooms.map(room => room.room_id));
+        }
+    }
+
     const resetForm = () => {
         setRoomName('');
         setRoomDescription('');
@@ -162,6 +197,11 @@ export default function RoomsOverviewPage() {
     const handleCancelDelete = () => {
         setSelectedRooms([]);
         setIsDeleteRoomOpen(false);
+    };
+
+     const handleCancelHide = () => {
+        setRoomsToHide([]);
+        setIsHideRoomOpen(false);
     };
 
     return (
@@ -238,7 +278,7 @@ export default function RoomsOverviewPage() {
             {!isSidebarOpen && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed right-0 top-1/2 -translate-y-1/2 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                    className="fixed right-0 top-1/5 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
                 >
                     <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
                     <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
@@ -288,11 +328,13 @@ export default function RoomsOverviewPage() {
                         className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
                             Raum löschen
                         </button>
-                        <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
+                        
+                        <button onClick={() => {
+                            setIsHideRoomOpen(true);
+                            setIsSidebarOpen(false);
+                        }}
+                        className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
                             Raum ausblenden
-                        </button>
-                        <button className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors">
-                            Raum bearbeiten
                         </button>
                     </div>
                 </div>
@@ -485,6 +527,106 @@ export default function RoomsOverviewPage() {
                             >
                                 Löschen ({selectedRooms.length})
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {isHideRoomOpen && (
+                <div className='fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-4' onClick={handleCancelHide}>
+
+                    <div 
+                        className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className='p-6 border-b border-gray-200'>
+
+                            <h2 className='text-2xl font-bold text-[#0f692b] text-center'>Raum ausblenden/sperren</h2>
+                        </div>
+                        <div className='p-6'>
+                            <div className='mb-4 flex items-center'>
+                                <input type="checkbox" 
+                                id='select-all-hide'
+                                checked={roomsToHide.length === rooms.length && rooms.length > 0}
+                                onChange={handleSelectAllHide}
+                                className='h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]'/>
+                                <label htmlFor="select-all-hide" className='ml-3 text-sm font-medium text-gray-700'>Alle auswählen</label>
+                            </div>
+
+                            <div className='space-y-3 max-h-80 overflow-y-auto'>
+                                {rooms.map((room) => (
+                                        <div 
+                                            key={room.room_id}
+                                            className={`flex items-center p-3 rounded-lg border transition-colors ${
+                                                room.is_visible 
+                                                    ? 'border-gray-200 hover:bg-gray-50' 
+                                                    : 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100'
+                                            }`}>
+                                                <input type="checkbox"
+                                                id={`hide-room-${room.room_id}`}
+                                                checked={roomsToHide.includes(room.room_id)}
+                                                onChange={() => handleHideRoomSelection(room.room_id)} 
+                                                className='h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]'/>
+                                                <label htmlFor={`hide-room-${room.room_id}`}
+                                                className='ml-3 flex-1 cursor-pointer'>
+                                                    <div className='flex items-center justify-between'>
+                                                        <div>
+                                                            <span className="font-medium text-gray-800">
+                                                            {room.room_name}
+                                                        </span>
+                                                        {room.building && (
+                                                            <span className='ml-2 text-sm text-gray-500'>
+                                                                ({room.building}, Stock {room.floor_number})
+                                                            </span>
+                                                        )}
+                                                        </div>
+                                                        {!room.is_visible && (
+                                                            <span className='px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full'>
+                                                                Ausgeblendet
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            </div>
+                                ))}
+                            </div>
+
+                            {roomsToHide.length > 0 && (
+                                <div className='mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100'>
+                                    <p className='text-sm text-blue-700 font-medium'>{roomsToHide.length} Raum{roomsToHide.length !== 1 ? 'e' : ''} zum Ausblenden/Einblenden ausgewählt</p>
+                                </div>
+                            )}
+
+                            <div className='mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200'>
+                                <p className='text-sm text-gray-700'>
+                                    <span className='font-semibold'>Hinweis:</span>
+                                    Ausgeblendete Räume werden für normale Benutzer nicht angezeigt, bleiben aber im System erhalten.
+                                </p>
+                            </div>
+                        </div>
+                        <div className='p-6 border-t border-gray-200 flex gap-3'>
+                            <button onClick={handleCancelHide}
+                            className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                            >Abbrechen</button>
+                            <div className="flex flex-1 gap-2">
+                                <button onClick={handleHideRooms}
+                                disabled={roomsToHide.length === 0}
+                                className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+                                    roomsToHide.length === 0
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                }`}
+                                >Ausblenden</button>
+                                <button onClick={handleUnhideRooms}
+                                disabled={roomsToHide.length === 0}
+                                className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+                                    roomsToHide.length === 0
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
+                                >Einblenden</button>
+                            </div>
                         </div>
                     </div>
                 </div>
