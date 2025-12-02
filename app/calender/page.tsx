@@ -24,6 +24,12 @@ const ROOMS = [
     { room_id: 2, room_name: 'Raum 2' },
 ];
 
+const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
+    const hour = Math.floor(i / 2) + 8;
+    const minute = i % 2 === 0 ? '00' : '30';
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
+});
+
 const MOCK_TIMESLOTS: Timeslot[] = [
     { timeslot_id: 1, room_id: 1, status: 1, slot_date: '2025-11-18', start_time: '14:00:00', end_time: '17:00:00' },
     { timeslot_id: 2, room_id: 1, status: 1, slot_date: '2025-11-20', start_time: '09:00:00', end_time: '12:00:00' },
@@ -89,6 +95,12 @@ export default function RoomsPage() {
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
+    const [blockRoomId, setBlockRoomId] = useState(1);
+    const [blockDate, setBlockDate] = useState('');
+    const [blockAllDay, setBlockAllDay] = useState(false);
+    const [blockStart, setBlockStart] = useState('08:00');
+    const [blockEnd, setBlockEnd] = useState('20:00');
+
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -175,6 +187,18 @@ export default function RoomsPage() {
         const todayMonday = getMonday(new Date());
         return currentWeekStart.toDateString() === todayMonday.toDateString();
     }, [currentWeekStart]);
+
+    const handleBlockSubmit = () => {
+    console.log({
+        room: blockRoomId,
+        date: blockDate,
+        allDay: blockAllDay,
+        from: blockStart,
+        to: blockEnd
+    });
+
+    setShowBlockPopup(false);
+};
 
     return (
         <>
@@ -431,21 +455,125 @@ export default function RoomsPage() {
                     </div>
                 </div>
             )}
-            {showBlockPopup && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
-                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Tag/Slots sperren</h2>
-                        <div className="flex gap-3 mt-auto">
-                            <button
-                                onClick={() => setShowBlockPopup(false)}
-                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+        {showBlockPopup && (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800">Tage / Zeitslots sperren</h2>
+                <button
+                    onClick={() => setShowBlockPopup(false)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                    aria-label="Schließen"
+                >
+                    ×
+                </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-6 space-y-4">
+
+                {/* Raum */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Raum
+                    </label>
+                    <select
+                        value={blockRoomId}
+                        onChange={(e) => setBlockRoomId(Number(e.target.value))}
+                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
+                                   text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                    >
+                        {ROOMS.map((room) => (
+                            <option key={room.room_id} value={room.room_id}>
+                                {room.room_name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Datum */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Datum
+                    </label>
+                    <input
+                        type="date"
+                        value={blockDate}
+                        onChange={(e) => setBlockDate(e.target.value)}
+                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
+                                   text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                    />
+                </div>
+
+                {/* Ganzer Tag Checkbox */}
+                <div className="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        id="block-all-day"
+                        checked={blockAllDay}
+                        onChange={() => setBlockAllDay(!blockAllDay)}
+                        className="w-5 h-5 rounded border-2 border-gray-300 text-[#0f692b] 
+                                   focus:ring-[#0f692b] focus:ring-2"
+                    />
+                    <label htmlFor="block-all-day" className="text-sm font-medium text-gray-700">
+                        Ganzer Tag sperren
+                    </label>
+                </div>
+
+                {/* Von / Bis – nur sichtbar wenn nicht ganzer Tag */}
+                {!blockAllDay && (
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Von
+                            </label>
+                            <select
+                                value={blockStart}
+                                onChange={(e) => setBlockStart(e.target.value)}
+                                className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
+                                           text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
                             >
-                                Schließen
-                            </button>
+                                {TIME_OPTIONS.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Bis
+                            </label>
+                            <select
+                                value={blockEnd}
+                                onChange={(e) => setBlockEnd(e.target.value)}
+                                className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
+                                           text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                            >
+                                {TIME_OPTIONS.map(t => (
+                                    <option key={t} value={t}>{t}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
+                <button
+                    onClick={handleBlockSubmit}
+                    className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
+                               hover:bg-[#0a4d1f] transition-colors"
+                >
+                    Slot sperren
+                </button>
+            </div>
+        </div>
+    </div>
+)}
 
         </>)
 }
