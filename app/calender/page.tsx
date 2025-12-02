@@ -444,10 +444,11 @@ export default function RoomsPage() {
                             {/* Hier DB-Daten einfügen */}
                         </div>
 
-                        <div className="flex gap-3 mt-auto">
+            <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
                             <button
                                 onClick={() => setShowPopup(false)}
-                                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                    className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
+                               hover:bg-[#0a4d1f] transition-colors"
                             >
                                 Schließen
                             </button>
