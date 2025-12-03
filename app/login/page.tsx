@@ -68,7 +68,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80 pt-10 md:pt-25">
+    <main className="relative flex min-h-screen items-center justify-center bg-black/80 pt-20 pb-12 px-4 md:pt-25">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
           src="/pictures/picture2.jpeg"
@@ -79,7 +79,7 @@ export default function LoginPage() {
 
       <div className="absolute inset-0 bg-black/20" />
 
-      <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-6 py-8 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
+      <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-8 py-10 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-2xl font-bold text-green-700 sm:text-4xl md:text-5xl">
             Login
@@ -146,7 +146,7 @@ export default function LoginPage() {
               Login erfolgreich.
             </p>
           )}
-          <div className="pt-2 text-center">
+          <div className="pt-2 pb-2 text-center">
             <button
               type="submit"
               disabled={loading}
