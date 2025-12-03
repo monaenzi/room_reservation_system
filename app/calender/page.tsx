@@ -157,7 +157,7 @@ export default function RoomsPage() {
 
     // Function to open popup on cell click
     const handleCellClick = (dateIndex: number, hour: number) => {
-        if (role !== 'user') return;
+        if (role !== 'user' && role !== 'admin') return;
 
         if (isReserved(dateIndex, hour)) return;
 
@@ -496,7 +496,7 @@ export default function RoomsPage() {
                                                     'relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && role === 'user' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
+                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
@@ -546,7 +546,7 @@ export default function RoomsPage() {
                                                     'relative flex min-h-[24px] items-center justify-center border-t border-[#0f692b]',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && role === 'user' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
+                                                    !reserved && role === 'user' || role === 'admin'? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
@@ -608,7 +608,7 @@ export default function RoomsPage() {
             </div>
 
             {/* Booking Popup */}
-            {openBooking && role === 'user' && (
+            {openBooking && (role === 'user' || role === 'admin') && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
                         {/* Header */}
