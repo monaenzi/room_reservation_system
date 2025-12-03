@@ -90,7 +90,12 @@ export default function RoomsPage() {
     const [role, setRole] = useState<Role>('guest');
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
-    const [currentDayIndex, setCurrentDayIndex] = useState(0);
+    const [currentDayIndex, setCurrentDayIndex] = useState(() => {
+        if (typeof window === 'undefined') return 0;
+        const today = new Date().getDate();
+        const Index = today- 1;
+        return Index >= 0 && Index < 4 ? Index : 0;
+        });
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
 
     // Admin sidebar states
@@ -301,6 +306,15 @@ export default function RoomsPage() {
         return currentWeekStart.toDateString() === todayMonday.toDateString();
     }, [currentWeekStart]);
 
+    const showMobileTodayButton = useMemo(() => {
+        if (!isCurrentWeek) return true;
+
+        const today = new Date();
+        const currentRealDayIndex = today.getDay() - 1;
+
+        return currentDayIndex !== currentRealDayIndex;
+    }, [isCurrentWeek, currentDayIndex]);
+
     // Get available end times based on start time
     const availableEndTimes = useMemo(() => {
         const startMinutes = timeToMinutes(startTime);
@@ -343,7 +357,13 @@ export default function RoomsPage() {
     };
 
     const goToCurrentWeek = () => {
-        setCurrentWeekStart(getMonday(new Date()));
+        const today = new Date();
+
+        setCurrentWeekStart(getMonday(today));
+
+        const dayIndex = today.getDay() - 1;
+
+        setCurrentDayIndex(dayIndex >= 0 && dayIndex < 4 ? dayIndex : 0);
     };
 
     const goToPreviousDay = () => {
@@ -439,7 +459,7 @@ export default function RoomsPage() {
                             <div className="text-[11px] font-semibold text-[#0f692b] truncate">
                                 {formatFullDate(weekDates[currentDayIndex])}
                             </div>
-                            {!isCurrentWeek && (
+                            {showMobileTodayButton && (
                                 <button
                                     onClick={goToCurrentWeek}
                                     className="mt-0.5 text-[9px] text-[#0f692b] underline hover:text-[#0a4d1f]"
