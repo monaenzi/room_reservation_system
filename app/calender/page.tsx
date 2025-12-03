@@ -14,7 +14,7 @@ type Timeslot = {
     end_time: string;
     blocked_reason?: string;
     name?: string;
-        booking_status?: number; 
+    booking_status?: number;
 };
 
 type BookingRequest = {
@@ -52,16 +52,6 @@ const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
     const minute = i % 2 === 0 ? '00' : '30';
     return `${hour.toString().padStart(2, '0')}:${minute}`;
 });
-
-// const MOCK_TIMESLOTS: Timeslot[] = [
-//     { timeslot_id: 1, room_id: 1, status: 1, slot_date: '2025-11-18', start_time: '14:00:00', end_time: '17:00:00', name: 'Team Meeting' },
-//     { timeslot_id: 2, room_id: 1, status: 1, slot_date: '2025-11-20', start_time: '09:00:00', end_time: '12:00:00', name: 'Project Review' },
-//     { timeslot_id: 3, room_id: 2, status: 1, slot_date: '2025-11-19', start_time: '10:00:00', end_time: '13:00:00', name: 'Client Presentation' },
-//     { timeslot_id: 4, room_id: 1, status: 1, slot_date: '2025-11-25', start_time: '11:00:00', end_time: '14:00:00', name: 'Workshop' },
-//     { timeslot_id: 5, room_id: 2, status: 1, slot_date: '2025-11-27', start_time: '15:00:00', end_time: '18:00:00', name: 'Training' },
-//     { timeslot_id: 6, room_id: 1, status: 1, slot_date: '2025-11-11', start_time: '08:00:00', end_time: '11:00:00', name: 'Planning Session' },
-// ];
-
 
 function getMonday(date: Date): Date {
     const d = new Date(date);
@@ -275,11 +265,16 @@ export default function RoomsPage() {
 
     // Function to delete a booking
     const handleDeleteBooking = async (timeslotId: number) => {
+        // In a real app, you would make an API call here
         await fetch(`/api/calendar?room_id=${selectedRoomId}`)
             .then(res => res.json())
             .then(data => setTimeslots(data));
 
+        // For demo purposes, we'll just log the action
         alert(`Buchung mit ID ${timeslotId} würde gelöscht werden.`);
+
+        // In a real implementation, you would update the MOCK_TIMESLOTS array
+        // or make an API call to delete the booking
     };
 
     const handleBlockSubmit = () => {
@@ -298,12 +293,14 @@ export default function RoomsPage() {
     const loadAdminRequests = async () => {
         setIsLoadingRequests(true);
         try {
-const res = await fetch('/api/calendar?action=admin-requests', {
-  method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});            if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
+            const res = await fetch('/api/calendar?action=admin-requests', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
             const data = await res.json();
             setAdminRequests(data);
         } catch (err) {
@@ -402,21 +399,22 @@ const res = await fetch('/api/calendar?action=admin-requests', {
         return TIME_OPTIONS.filter(time => timeToMinutes(time) >= startMinutes);
     }, [startTime]);
 
-   const isReserved = (dateIndex: number, hour: number) => {
-    const dateStr = toISODate(weekDates[dateIndex]);
-    return timeslotsForRoom.some((t) => {
-        if (t.slot_date !== dateStr) return false;
-        const startHour = getHourFromTime(t.start_time);
-        const endHour = getHourFromTime(t.end_time);
-        
-        // Zeitslot prüfen
-        if (hour >= startHour && hour < endHour) {
-            // Nur als reserviert anzeigen, wenn booking_status = 1 (akzeptiert)
-            return t.booking_status === 1;
-        }
-        return false;
-    });
-};
+    const isReserved = (dateIndex: number, hour: number) => {
+        const dateStr = toISODate(weekDates[dateIndex]);
+        return timeslotsForRoom.some((t) => {
+            if (t.slot_date !== dateStr) return false;
+            const startHour = getHourFromTime(t.start_time);
+            const endHour = getHourFromTime(t.end_time);
+            
+            // Zeitslot prüfen
+            if (hour >= startHour && hour < endHour) {
+                // Nur als reserviert anzeigen, wenn booking_status = 1 (akzeptiert)
+                return t.booking_status === 1;
+            }
+            return false;
+        });
+    };
+
     const isReservationStart = (dateIndex: number, hour: number) => {
         const dateStr = toISODate(weekDates[dateIndex]);
         return timeslotsForRoom.some((t) => {
@@ -652,7 +650,7 @@ const res = await fetch('/api/calendar?action=admin-requests', {
                                                     'relative flex min-h-[24px] items-center justify-center border-t border-[#0f692b]',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && role === 'user' || role === 'admin' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
+                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
