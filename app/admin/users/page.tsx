@@ -7,10 +7,12 @@ export default function AdminUsersPage() {
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [roleId, setRoleId] = useState("0"); 
+  const [roleId, setRoleId] = useState("0");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [showEditSection, setShowEditSection] = useState(false); //für Collapsible Panel
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -53,7 +55,7 @@ export default function AdminUsersPage() {
       setUsername("");
       setFirstName("");
       setLastName("");
-      
+
     } catch (err) {
       console.error(err);
       setError("Verbindung zur Datenbank nicht möglich.");
@@ -167,6 +169,42 @@ export default function AdminUsersPage() {
             </button>
           </div>
         </form>
+
+          {/* collapsible section für benutzerbearbeitung */}
+        <div className="border-t border-neutral-200 pt-10">
+          <button onClick={() => setShowEditSection(!showEditSection)}
+            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100">
+            <h2 className="text-xl font-bold text-green-700">Benutzer bearbeiten</h2>
+
+            <svg
+              className={`h-6 w-6 transform transition-transform ${showEditSection ? "rotate-180" : ""
+                }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {showEditSection && (
+            <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
+              <p className="text-center text-neutral-700">
+                Hier können später user bearbeitet werden
+                <br />
+                <span className="text-sm text-neutral-600">
+                      die funktion wird später implementiert
+                </span>
+              </p>
+            </div>
+          )}
+
+        </div>
       </section>
     </main>
   );
