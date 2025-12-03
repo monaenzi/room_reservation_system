@@ -23,6 +23,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const [showCreateSection, setShowCreateSection] = useState(true);
+
   const [showEditSection, setShowEditSection] = useState(false); //für Collapsible Panel
 
 
@@ -198,24 +200,54 @@ function handleClosePopup() {
   setShowEditPopup(false);
   setSelectedUser(null);
 }
+
   
 
 
-
+ 
   return (
     <main className="flex justify-center bg-neutral-100 py-28">
       <section className="w-full max-w-3xl rounded-3xl bg-white px-8 py-10 shadow-xl">
         <header className="mb-8">
           <h1 className="text-2xl font-bold text-green-700">
-            Benutzerverwaltung – neuen User anlegen
+            Userverwaltung
           </h1>
           <p className="mt-2 text-sm text-neutral-700">
-            Hier können Administratoren neue Benutzer anlegen. Das
+            Hier können Administratoren neue User erstellen und bearbeiten. Das
             Standard-Passwort für die Erst-Anmeldung ist{" "}
             <span className="font-semibold">"Raum123!"</span> und es wird als
             Hash gespeichert.
           </p>
         </header>
+
+         <div className="mb-10">
+          <button
+            onClick={() => setShowCreateSection(!showCreateSection)}
+            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
+          >
+            <h2 className="text-xl font-bold text-green-700">
+              User erstellen
+            </h2>
+            <svg
+              className={`h-6 w-6 transform transition-transform ${
+                showCreateSection ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {showCreateSection && (
+            <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
+        
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -307,14 +339,16 @@ function handleClosePopup() {
             </button>
           </div>
         </form>
-
-
+        </div>
+        )}
+      </div>
+ 
 
           {/* collapsible section für benutzerbearbeitung */}
         <div className="border-t border-neutral-200 pt-10">
           <button onClick={() => setShowEditSection(!showEditSection)}
             className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100">
-            <h2 className="text-xl font-bold text-green-700">Benutzer bearbeiten</h2>
+            <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
 
             <svg
               className={`h-6 w-6 transform transition-transform ${showEditSection ? "rotate-180" : ""
