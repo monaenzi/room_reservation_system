@@ -57,9 +57,14 @@ export async function POST(req: NextRequest) {
     const normalizedDate = slot_date.split("T")[0];
 
     // Prüfen, ob dieser Zeitraum schon gebucht ist
+    // Prüfen, ob dieser Zeitraum schon gebucht ist (korrekte Überlappungslogik)
     const existing = await conn.query(
-      "SELECT * FROM timeslot WHERE room_id=? AND slot_date=? AND ((start_time < ? AND end_time > ?) OR (start_time < ? AND end_time > ?))",
-      [room_id, normalizedDate, end_time, end_time, start_time, start_time]
+      `SELECT * FROM timeslot 
+   WHERE room_id = ? 
+   AND slot_date = ? 
+   AND start_time < ? 
+   AND end_time > ?`,
+      [room_id, normalizedDate, end_time, start_time]
     );
 
     if (existing.length > 0) {
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
+
 
     // Timeslot erstellen (status=2 → reserviert)
     const timeslotResult: InsertResult = await conn.query(
