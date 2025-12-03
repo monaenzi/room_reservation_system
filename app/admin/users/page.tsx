@@ -2,6 +2,17 @@
 
 import { FormEvent, useState } from "react";
 
+type User = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  username: string;
+  email: string;
+  phone?: string;
+  role_id: number;
+  role_name?: string;
+}
+
 export default function AdminUsersPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -13,6 +24,51 @@ export default function AdminUsersPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [showEditSection, setShowEditSection] = useState(false); //für Collapsible Panel
+
+
+  const [users, setUsers] = useState<User[]>([
+    {
+      id: 1,
+      first_name: "Alia",
+      last_name: "Alamer",
+      username: "a.alamer",
+      email: "alia.alamer@gmail.com",
+      phone: "0664/1234567",
+      role_id: 1,
+      role_name: "Admin"
+    },
+    {
+      id: 2,
+      first_name: "Ramona",
+      last_name: "Enzi",
+      username: "r.enzi",
+      email: "enzi.ramona@gmail.com",
+      phone: "0664/6543211",
+      role_id: 1,
+      role_name: "Admin"
+    },
+    {
+      id: 3,
+      first_name: "Linda",
+      last_name: "Kadyrova",
+      username: "l.kady",
+      email: "k.linda@gmail.com",
+      phone: "0660/4567890",
+      role_id: 2,
+      role_name: "User"
+    },
+    {
+      id: 4,
+      first_name: "Lucas",
+      last_name: "Wychodii-Lubi",
+      username: "l.wycho",
+      email: "l.wycho@gmail.com",
+      phone: "0670/135792",
+      role_id: 2,
+      role_name: "User"
+    }
+  ]);
+
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -170,6 +226,8 @@ export default function AdminUsersPage() {
           </div>
         </form>
 
+
+
           {/* collapsible section für benutzerbearbeitung */}
         <div className="border-t border-neutral-200 pt-10">
           <button onClick={() => setShowEditSection(!showEditSection)}
@@ -194,13 +252,48 @@ export default function AdminUsersPage() {
 
           {showEditSection && (
             <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
-              <p className="text-center text-neutral-700">
-                Hier können später user bearbeitet werden
-                <br />
-                <span className="text-sm text-neutral-600">
-                      die funktion wird später implementiert
-                </span>
-              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-green-700">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Vorname</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Nachname</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Username</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Password</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">E-Mail</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Telefonnummer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Rolle</th>
+                    </tr>
+                  </thead>
+                  
+                  <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id}
+                    className="border-b border-green-200 hover:bg-green-100/50">
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.first_name}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.last_name}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.username}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">
+                        <span className="font-mono">**********</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.email}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.phone || "N/A"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            user.role_id === 1 
+                              ? "bg-red-100 text-red-800" 
+                              : "bg-blue-100 text-blue-800"
+                          }`}>{user.role_name || (user.role_id === 1 ? "Admin" : "User")}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-6 flex justify-between items-center border-t border-green-200 pt-4">
+                <p className="text-sm text-neutral-600">Gesamt: {users.length} Benutzer</p>
+              </div>
             </div>
           )}
 
