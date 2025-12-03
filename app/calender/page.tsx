@@ -85,27 +85,45 @@ function getHourFromTime(timeStr: string): number {
     return parseInt(timeStr.split(':')[0], 10);
 }
 
+function timeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+}
+
 export default function RoomsPage() {
     const [role, setRole] = useState<Role>('guest');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    const [showPopup, setShowPopup] = useState(false);
-    const [showBlockPopup, setShowBlockPopup] = useState(false);
 
     const [selectedRoomId, setSelectedRoomId] = useState(1);
-    const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
+    const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));  
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
+    
+    
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [showRequestsPopup, setRequestsShowPopup] = useState(false);
+    const [showBlockPopup, setShowBlockPopup] = useState(false);
+
     const [blockRoomId, setBlockRoomId] = useState(1);
     const [blockDate, setBlockDate] = useState('');
     const [blockAllDay, setBlockAllDay] = useState(false);
     const [blockStart, setBlockStart] = useState('08:00');
     const [blockEnd, setBlockEnd] = useState('20:00');
 
+    const [openBooking, setOpenBooking] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [selectedHour, setSelectedHour] = useState<number | null>(null);
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
+    const [reason, setReason] = useState('');
+    const [timeError, setTimeError] = useState('');
+    const [reasonError, setReasonError] = useState('');
+
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
             const storedRole = (localStorage.getItem('userRole') as Role) || 'guest';
+
+            console.log('Current Auth State from LocalStorage:', {isLoggedIn, storedRole});
 
             if (!isLoggedIn) setRole('guest');
             else if (storedRole === 'admin') setRole('admin');
@@ -125,6 +143,17 @@ export default function RoomsPage() {
         () => MOCK_TIMESLOTS.filter((t) => t.room_id === selectedRoomId),
         [selectedRoomId]
     );
+
+    const isCurrentWeek = useMemo(() => {
+        const todayMonday = getMonday(new Date());
+        return currentWeekStart.toDateString() === todayMonday.toDateString();
+    }, [currentWeekStart]);
+
+    const availableEndTimes = useMemo(() => {
+            const startMinutes = timeToMinutes(startTime);
+            return TIME_OPTIONS.filter(time => timeToMinutes(time) >= startMinutes);
+        }, [startTime]);
+
 
     const isReserved = (dateIndex: number, hour: number) => {
         const dateStr = toISODate(weekDates[dateIndex]);
@@ -183,13 +212,80 @@ export default function RoomsPage() {
         }
     };
 
-    const isCurrentWeek = useMemo(() => {
-        const todayMonday = getMonday(new Date());
-        return currentWeekStart.toDateString() === todayMonday.toDateString();
-    }, [currentWeekStart]);
+    const handleCellClick = (dateIndex: number, hour: number) => {
+        if (role !== 'user') return;
+
+        if (isReserved(dateIndex, hour)) return;
+
+        const date = toISODate(weekDates[dateIndex]);
+        setSelectedDate(date);
+        setSelectedHour(hour);
+        setStartTime(`${hour.toString().padStart(2, '0')}:00`);
+        setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
+        setReason('');
+        setTimeError('');
+        setReasonError('');
+        setOpenBooking(true);
+    };
+
+    const handleStartTimeChange = (newStartTime: string) => {
+        setStartTime(newStartTime);
+        setTimeError('');
+        
+        // If end time is before or equal to start time, set it to start time
+        if (timeToMinutes(endTime) <= timeToMinutes(newStartTime)) {
+            setEndTime(newStartTime);
+        }
+    };
+
+    const handleReset = () => {
+        setSelectedRoomId(1);
+        setSelectedDate('');
+        setStartTime('08:00');
+        setEndTime('08:00');
+        setReason('');
+        setTimeError('');
+        setReasonError('');
+    };
+
+    const handleBookingSubmit = () => {
+        const startMinutes = timeToMinutes(startTime);
+        const endMinutes = timeToMinutes(endTime);
+        const duration = endMinutes - startMinutes;
+
+        setTimeError('');
+        setReasonError('');
+
+        let hasError = false;
+
+        if (duration < 30) {
+            setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
+            hasError = true;
+        }
+
+        if (!reason.trim()) {
+            setReasonError('Bitte geben Sie einen Grund für die Buchung an.');
+            hasError = true;
+        }
+
+        if (hasError) {
+            return;
+        }
+
+        // Handle booking submission here
+        console.log('User Booking:', {
+            room: selectedRoomId,
+            date: selectedDate,
+            startTime,
+            endTime,
+            reason
+        });
+
+        setOpenBooking(false);
+    };
 
     const handleBlockSubmit = () => {
-    console.log({
+    console.log('Admin Blocking:', {
         room: blockRoomId,
         date: blockDate,
         allDay: blockAllDay,
@@ -321,10 +417,12 @@ export default function RoomsPage() {
                                         return (
                                             <div
                                                 key={hour}
+                                                onClick={() => handleCellClick(dateIndex, hour)}
                                                 className={[
                                                     'relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
+                                                    !reserved ? 'cursor-pointer hover:bg-[#e6f4e9]' : '',
                                                 ]
                                                     .filter(Boolean)
                                                     .join(' ')}
@@ -370,10 +468,12 @@ export default function RoomsPage() {
                                         return (
                                             <div
                                                 key={hour}
+                                                onClick={() => handleCellClick(currentDayIndex, hour)}
                                                 className={[
                                                     'relative flex min-h-[24px] items-center justify-center border-t border-[#0f692b]',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
+                                                    !reserved ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ]
                                                     .filter(Boolean)
                                                     .join(' ')}
@@ -424,7 +524,7 @@ export default function RoomsPage() {
                     </button>
 
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
-                    <button onClick={() => setShowPopup(true)}
+                    <button onClick={() => setRequestsShowPopup(true)}
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
@@ -435,7 +535,7 @@ export default function RoomsPage() {
 
                 </div>
             </div>
-            {showPopup && (
+            {showRequestsPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
                         <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Anfragen verwalten</h2>
@@ -446,7 +546,7 @@ export default function RoomsPage() {
 
             <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
                             <button
-                                onClick={() => setShowPopup(false)}
+                                onClick={() => setRequestsShowPopup(false)}
                     className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
                                hover:bg-[#0a4d1f] transition-colors"
                             >
@@ -575,5 +675,143 @@ export default function RoomsPage() {
     </div>
 )}
 
-        </>)
+    {openBooking && role === 'user' && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Raum buchen</h2>
+                            <button
+                                onClick={() => setOpenBooking(false)}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                aria-label="Schließen"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* Form Content */}
+                        <div className="px-5 py-6 space-y-4">
+                            {/* Raum dropdown */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Raum
+                                </label>
+                                <select 
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    value={selectedRoomId}
+                                    onChange={(e) => setSelectedRoomId(Number(e.target.value))}
+                                >
+                                    {ROOMS.map((room) => (
+                                        <option key={room.room_id} value={room.room_id}>
+                                            {room.room_name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Datum input */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Datum
+                                </label>
+                                <input
+                                    type="date"
+                                    value={selectedDate || ''}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                />
+                            </div>
+
+                            {/* Von / Bis time dropdowns */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Von
+                                    </label>
+                                    <select
+                                        value={startTime}
+                                        onChange={(e) => handleStartTimeChange(e.target.value)}
+                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    >
+                                        {TIME_OPTIONS.map((time) => (
+                                            <option key={time} value={time}>
+                                                {time}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Bis
+                                    </label>
+                                    <select
+                                        value={endTime}
+                                        onChange={(e) => {
+                                            setEndTime(e.target.value);
+                                            setTimeError('');
+                                        }}
+                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    >
+                                        {availableEndTimes.map((time) => (
+                                            <option key={time} value={time}>
+                                                {time}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Time Error message */}
+                            {timeError && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                    {timeError}
+                                </div>
+                            )}
+
+                            {/* Grund textarea */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Grund
+                                </label>
+                                <textarea
+                                    value={reason}
+                                    onChange={(e) => {
+                                        setReason(e.target.value);
+                                        setReasonError('');
+                                    }}
+                                    rows={3}
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 resize-none focus:outline-none focus:border-[#0f692b]"
+                                    placeholder="Grund für die Buchung..."
+                                />
+                            </div>
+
+                            {/* Reason Error message */}
+                            {reasonError && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                    {reasonError}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer Buttons */}
+                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
+                            <button
+                                onClick={handleReset}
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                            >
+                                Zurücksetzen
+                            </button>
+                            <button
+                                onClick={handleBookingSubmit}
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                            >
+                                Absenden
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 }
