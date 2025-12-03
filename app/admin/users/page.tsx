@@ -201,6 +201,20 @@ function handleClosePopup() {
   setSelectedUser(null);
 }
 
+
+function handleDeleteUser(id: number, event: React.MouseEvent){
+  event.stopPropagation();
+
+  if(!confirm("Möchten Sie diesen User wirklich löschen?")) return;
+
+  setUsers(users.filter(user => user.id !== id));
+  setSuccess("User erfolgreich gelöscht");
+
+  if (selectedUser && selectedUser.id === id){
+    setShowEditPopup(false);
+    setSelectedUser(null);
+  }
+}
   
 
 
@@ -379,6 +393,7 @@ function handleClosePopup() {
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">E-Mail</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Telefonnummer</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Rolle</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Löschen</th>
                     </tr>
                   </thead>
                   
@@ -401,6 +416,23 @@ function handleClosePopup() {
                               ? "bg-red-100 text-red-800" 
                               : "bg-blue-100 text-blue-800"
                           }`}>{user.role_name || (user.role_id === 1 ? "Admin" : "User")}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={(e) => handleDeleteUser(user.id, e)}
+                          className="text-red-600 hover:text-red-800 transition-color"
+                          title="User löschen">
+                            <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                              <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -425,7 +457,7 @@ function handleClosePopup() {
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-green-700">
-                Benutzer bearbeiten
+                User bearbeiten
               </h2>
               <button
                 onClick={handleClosePopup}
@@ -476,10 +508,7 @@ function handleClosePopup() {
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
                   className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
-                />
-                <p className="mt-1 text-xs text-neutral-500">
-                  Passwort: ********** (kann nur vom Benutzer geändert werden)
-                </p>
+                />  
               </div>
 
 

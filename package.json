@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "dotenv": "^17.2.3",
     "mariadb": "^3.4.5",
     "next": "16.0.0",
     "next-auth": "^4.24.13",
