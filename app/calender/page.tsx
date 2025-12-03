@@ -90,12 +90,7 @@ export default function RoomsPage() {
     const [role, setRole] = useState<Role>('guest');
     const [selectedRoomId, setSelectedRoomId] = useState(1);
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
-    const [currentDayIndex, setCurrentDayIndex] = useState(() => {
-        if (typeof window === 'undefined') return 0;
-        const today = new Date().getDate();
-        const Index = today- 1;
-        return Index >= 0 && Index < 4 ? Index : 0;
-        });
+    const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
 
     // Admin sidebar states
@@ -159,6 +154,15 @@ export default function RoomsPage() {
 
         fetchTimeslots();
     }, [selectedRoomId]);
+
+    useEffect(() => {
+        const today = new Date();
+        const index = today.getDay() - 1;
+
+        if (index >= 0 && index < 4) {
+            setCurrentDayIndex(index);
+        }
+    }, []);
 
     // Function to open popup on cell click
     const handleCellClick = (dateIndex: number, hour: number) => {
