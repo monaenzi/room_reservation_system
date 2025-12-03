@@ -174,6 +174,15 @@ export default function RoomsPage() {
         fetchTimeslots();
     }, [selectedRoomId]);
 
+    useEffect(() => {
+        const today = new Date();
+        const index = today.getDay() - 1;
+
+        if (index >= 0 && index < 4) {
+            setCurrentDayIndex(index);
+        }
+    }, []);
+
     // Function to open popup on cell click
     const handleCellClick = (dateIndex: number, hour: number) => {
         if (role !== 'user' && role !== 'admin') return;
@@ -378,6 +387,15 @@ const res = await fetch('/api/calendar?action=admin-requests', {
         return currentWeekStart.toDateString() === todayMonday.toDateString();
     }, [currentWeekStart]);
 
+    const showMobileTodayButton = useMemo(() => {
+        if (!isCurrentWeek) return true;
+
+        const today = new Date();
+        const currentRealDayIndex = today.getDay() - 1;
+
+        return currentDayIndex !== currentRealDayIndex;
+    }, [isCurrentWeek, currentDayIndex]);
+
     // Get available end times based on start time
     const availableEndTimes = useMemo(() => {
         const startMinutes = timeToMinutes(startTime);
@@ -425,7 +443,13 @@ const res = await fetch('/api/calendar?action=admin-requests', {
     };
 
     const goToCurrentWeek = () => {
-        setCurrentWeekStart(getMonday(new Date()));
+        const today = new Date();
+
+        setCurrentWeekStart(getMonday(today));
+
+        const dayIndex = today.getDay() - 1;
+
+        setCurrentDayIndex(dayIndex >= 0 && dayIndex < 4 ? dayIndex : 0);
     };
 
     const goToPreviousDay = () => {
@@ -521,7 +545,7 @@ const res = await fetch('/api/calendar?action=admin-requests', {
                             <div className="text-[11px] font-semibold text-[#0f692b] truncate">
                                 {formatFullDate(weekDates[currentDayIndex])}
                             </div>
-                            {!isCurrentWeek && (
+                            {showMobileTodayButton && (
                                 <button
                                     onClick={goToCurrentWeek}
                                     className="mt-0.5 text-[9px] text-[#0f692b] underline hover:text-[#0a4d1f]"
