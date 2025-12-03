@@ -69,6 +69,20 @@ export default function AdminUsersPage() {
     }
   ]);
 
+  // für user bearbeitungs pupup
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRoleId, setEditRoleId] = useState("");
+
+
+
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -119,6 +133,74 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }
+
+
+
+
+
+  // funktion um bearbeitungs popup zu öffnen
+ function handleUserClick(user: User) {
+    setSelectedUser(user);
+    // Formular mit Benutzerdaten befüllen
+    setEditFirstName(user.first_name);
+    setEditLastName(user.last_name);
+    setEditUsername(user.username);
+    setEditEmail(user.email);
+    setEditPhone(user.phone || "");
+    setEditRoleId(user.role_id.toString());
+    setShowEditPopup(true);
+  }
+
+//  um Bearbeitung zu speichern
+function handleSaveEdit() {
+  if (!selectedUser) return;
+  
+  setEditLoading(true);
+  
+  // Kurze Verzögerung 
+  setTimeout(() => {
+    // Lokal aktualisieren
+    setUsers(users.map(user => 
+      user.id === selectedUser.id 
+        ? {
+            ...user,
+            first_name: editFirstName,
+            last_name: editLastName,
+            username: editUsername,
+            email: editEmail,
+            phone: editPhone,
+            role_id: Number(editRoleId),
+            role_name: Number(editRoleId) === 1 ? "Admin" : "User"
+          }
+        : user
+    ));
+    
+    setSuccess(`Benutzer ${editFirstName} ${editLastName} erfolgreich aktualisiert.`);
+    setShowEditPopup(false);
+    setEditLoading(false);
+  }, 300); // für bessere UX
+}
+
+// Formular zurückzusetzen
+function handleResetEdit() {
+  if (selectedUser) {
+    setEditFirstName(selectedUser.first_name);
+    setEditLastName(selectedUser.last_name);
+    setEditUsername(selectedUser.username);
+    setEditEmail(selectedUser.email);
+    setEditPhone(selectedUser.phone || "");
+    setEditRoleId(selectedUser.role_id.toString());
+  }
+}
+
+// Popup zu schließen
+function handleClosePopup() {
+  setShowEditPopup(false);
+  setSelectedUser(null);
+}
+  
+
+
 
   return (
     <main className="flex justify-center bg-neutral-100 py-28">
@@ -269,7 +351,8 @@ export default function AdminUsersPage() {
                   <tbody>
                   {users.map((user) => (
                     <tr key={user.id}
-                    className="border-b border-green-200 hover:bg-green-100/50">
+                    className="border-b border-green-200 hover:bg-green-100/50 cursor-pointer"
+                    onClick={() => handleUserClick(user)}>
                       <td className="px-4 py-3 text-sm text-neutral-700">{user.first_name}</td>
                       <td className="px-4 py-3 text-sm text-neutral-700">{user.last_name}</td>
                       <td className="px-4 py-3 text-sm text-neutral-700">{user.username}</td>
@@ -298,7 +381,150 @@ export default function AdminUsersPage() {
           )}
 
         </div>
+
+        
+
       </section>
+
+      {showEditPopup && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-green-700">
+                Benutzer bearbeiten
+              </h2>
+              <button
+                onClick={handleClosePopup}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Bearbeitungsformular */}
+            <div className="space-y-6">
+              {/* Vorname & Nachname in einer Zeile */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Vorname
+                  </label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Nachname
+                  </label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                  />
+                </div>
+              </div>
+
+
+              {/* Username mit Passwort-Hinweis */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  Passwort: ********** (kann nur vom Benutzer geändert werden)
+                </p>
+              </div>
+
+
+               {/* E-Mail */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                  E-Mail
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                />
+              </div>
+
+
+
+              {/* Telefonnummer */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                  Telefonnummer
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="z.B. 0664/1234567"
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                />
+              </div>
+
+
+              {/* Rolle */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                  Rolle
+                </label>
+                <select
+                  value={editRoleId}
+                  onChange={(e) => setEditRoleId(e.target.value)}
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                >
+                  <option value="1">Admin</option>
+                  <option value="2">User</option>
+                </select>
+              </div>
+
+
+             {/* Fehler/Success Meldungen */}
+              {error && (
+                <p className="text-center text-sm text-red-600">{error}</p>
+              )}
+              {success && !error && (
+                <p className="text-center text-sm text-green-700">{success}</p>
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-between pt-4">
+                <button
+                  type="button"
+                  onClick={handleResetEdit}
+                  className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
+                >
+                  Zurücksetzen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={editLoading}
+                  className="rounded-full bg-green-700 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70"
+                >
+                  {editLoading ? "Wird gespeichert..." : "Speichern"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
