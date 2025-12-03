@@ -460,7 +460,7 @@ export default function RoomsPage() {
                         </button>
 
                         <div className="text-center flex-1 min-w-0">
-                            <div className="text-[11px] font-semibold text-[#0f692b] truncate">
+                            <div className="text-[15px] font-bold text-[#0f692b] truncate">
                                 {formatFullDate(weekDates[currentDayIndex])}
                             </div>
                             {showMobileTodayButton && (
@@ -537,14 +537,14 @@ export default function RoomsPage() {
                     </div>
 
                     {/* Mobile Daily View */}
-                    <div className="md:hidden rounded-xl bg-white p-1 max-h-[60vh] overflow-y-auto">
+                    <div className="md:hidden rounded-xl bg-white p-1 max-h-[80vh] overflow-y-auto">
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
                                 <div className="h-6 flex items-center justify-center"></div>
                                 {HOURS.map((hour) => (
                                     <div
                                         key={hour}
-                                        className="flex min-h-[24px] items-center justify-center text-[8px] font-medium text-gray-500"
+                                        className="flex min-h-[38.5px] items-center justify-center text-[8px] font-semibold text-gray-500"
                                     >
                                         {hour.toString().padStart(2, '0')}:00
                                     </div>
@@ -552,13 +552,9 @@ export default function RoomsPage() {
                             </div>
 
                             <div className="flex-1">
-                                <div className="rounded-t-lg border-2 border-[#0f692b] border-b-0 py-0.5 text-center bg-[#0f692b]">
-                                    <div className="text-[10px] font-bold text-white">
-                                        {WEEKDAYS[currentDayIndex]}
-                                    </div>
-                                </div>
+                                
 
-                                <div className="flex flex-col rounded-b-lg border-2 border-[#0f692b] overflow-hidden">
+                                <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
                                         const reserved = isReserved(currentDayIndex, hour);
                                         const start = isReservationStart(currentDayIndex, hour);
@@ -567,14 +563,14 @@ export default function RoomsPage() {
                                                 key={hour}
                                                 onClick={() => handleCellClick(currentDayIndex, hour)}
                                                 className={[
-                                                    'relative flex min-h-[24px] items-center justify-center border-t border-[#0f692b]',
+                                                    'relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
                                                     !reserved && role === 'user' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
-                                                    <span className="text-[8px] font-semibold text-[#a3158f]">
+                                                    <span className="text-[10px] font-semibold text-[#a3158f]">
                                                         Reserviert
                                                     </span>
                                                 )}
