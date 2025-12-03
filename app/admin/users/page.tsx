@@ -63,16 +63,16 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="flex justify-center bg-neutral-100 py-28">
-      <section className="w-full max-w-3xl rounded-3xl bg-white px-8 py-10 shadow-xl">
-        <header className="mb-8">
+    <main className="flex min-h-screen justify-center bg-neutral-100 px-4 py-8 pt-25 md:py-28 md:pt-40">
+      <section className="w-full max-w-3xl rounded-3xl bg-white px-6 py-8 shadow-xl mc:px-12 md:-10">
+        <header className="mb-8 text-center sm:text:left">
           <h1 className="text-2xl font-bold text-green-700">
             Benutzerverwaltung – neuen User anlegen
           </h1>
           <p className="mt-2 text-sm text-neutral-700">
             Hier können Administratoren neue Benutzer anlegen. Das
             Standard-Passwort für die Erst-Anmeldung ist{" "}
-            <span className="font-semibold">"Raum123!"</span> und es wird als
+            <span className="font-semibold whitespace-nowrap">"Raum123!"</span> und es wird als
             Hash gespeichert.
           </p>
         </header>
@@ -89,7 +89,7 @@ export default function AdminUsersPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="benutzer@fh-joanneum.at"
               pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" /*"^[^@\s]+@[^@\s]+\.[^@\s]+$"*/
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
             />
           </div>
 
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
             />
           </div>
 
@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Vorname"
-                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
               />
             </div>
             <div>
@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Nachname"
-                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
               />
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function AdminUsersPage() {
             <select
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
             >
               <option value="1">Admin</option>
               <option value="2">User</option>
@@ -151,17 +151,17 @@ export default function AdminUsersPage() {
           </div>
 
           {error && (
-            <p className="text-center text-sm text-red-600">{error}</p>
+            <p className="text-center text-sm font-medium text-red-600">{error}</p>
           )}
           {success && !error && (
-            <p className="text-center text-sm text-green-700">{success}</p>
+            <p className="text-center text-sm font-medium text-green-700">{success}</p>
           )}
 
           <div className="pt-2 text-center">
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex min-w-[200px] justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70"
+              className="inline-flex w-full justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:w-auto"
             >
               {loading ? "Wird angelegt..." : "Benutzer anlegen"}
             </button>
