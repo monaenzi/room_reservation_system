@@ -17,21 +17,62 @@ type InsertResult = {
 // GET: Timeslots abfragen
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
-  if (!room_id) {
-    return NextResponse.json({ message: "room_id fehlt." }, { status: 400 });
-  }
-
+  const action = req.nextUrl.searchParams.get("action");
+  
   let conn: mariadb.PoolConnection | undefined;
+  
   try {
     conn = await pool.getConnection();
-    const timeslots = await conn.query(
-      "SELECT t.*, b.reason AS name, b.user_id FROM timeslot t LEFT JOIN booking b ON t.timeslot_id = b.timeslot_id WHERE t.room_id=?",
-      [room_id]
-    );
-    return NextResponse.json(timeslots);
+    
+    // Wenn Admin nach Anfragen fragt
+    if (action === 'admin-requests') {
+      const requests = await conn.query(`
+        SELECT 
+          b.booking_id,
+          b.user_id,
+          b.timeslot_id,
+          b.reason,
+          b.booking_status,
+          t.room_id,
+          t.slot_date,
+          t.start_time,
+          t.end_time,
+          t.timeslot_status,
+          u.username,
+          r.room_name
+        FROM booking b
+        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+        JOIN users u ON b.user_id = u.user_id  -- Hier: users statt user
+        JOIN room r ON t.room_id = r.room_id
+        WHERE b.booking_status = 0
+        ORDER BY t.slot_date, t.start_time
+      `);
+      return NextResponse.json(requests);
+    }
+    
+    // Normale Timeslots für Raum
+    if (room_id) {
+      const timeslots = await conn.query(
+        `SELECT 
+          t.*, 
+          b.reason AS name, 
+          b.user_id, 
+          b.booking_status,
+          r.room_name
+        FROM timeslot t 
+        LEFT JOIN booking b ON t.timeslot_id = b.timeslot_id
+        LEFT JOIN room r ON t.room_id = r.room_id
+        WHERE t.room_id = ?`,
+        [room_id]
+      );
+      return NextResponse.json(timeslots);
+    }
+    
+    return NextResponse.json({ message: "Parameter fehlen." }, { status: 400 });
+    
   } catch (err) {
-    console.error("Fehler beim Laden der Timeslots:", err);
-    return NextResponse.json({ message: "Fehler beim Laden der Timeslots." }, { status: 500 });
+    console.error("Fehler beim Laden der Daten:", err);
+    return NextResponse.json({ message: "Fehler beim Laden der Daten." }, { status: 500 });
   } finally {
     if (conn) conn.release();
   }
@@ -56,13 +97,13 @@ export async function POST(req: NextRequest) {
     // Datum normalisieren (YYYY-MM-DD)
     const normalizedDate = slot_date.split("T")[0];
 
-    // Prüfen, ob dieser Zeitraum schon gebucht ist (korrekte Überlappungslogik)
+    // Prüfen, ob dieser Zeitraum schon gebucht ist
     const existing = await conn.query(
       `SELECT * FROM timeslot 
-   WHERE room_id = ? 
-   AND slot_date = ? 
-   AND start_time < ? 
-   AND end_time > ?`,
+       WHERE room_id = ? 
+       AND slot_date = ? 
+       AND start_time < ? 
+       AND end_time > ?`,
       [room_id, normalizedDate, end_time, start_time]
     );
 
@@ -73,7 +114,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Timeslot erstellen (status=2 → reserviert)
+    // Timeslot erstellen (status=2 → reserved)
     const timeslotResult: InsertResult = await conn.query(
       "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
       [room_id, normalizedDate, start_time, end_time]
@@ -81,7 +122,7 @@ export async function POST(req: NextRequest) {
     const timeslot_id = timeslotResult.insertId;
     if (!timeslot_id) throw new Error("timeslot_id konnte nicht ermittelt werden.");
 
-    // Booking erstellen
+    // Booking erstellen (booking_status=0 → pending)
     const bookingResult: InsertResult = await conn.query(
       "INSERT INTO booking (user_id, timeslot_id, reason, booking_status) VALUES (?, ?, ?, 0)",
       [user_id, timeslot_id, reason]
@@ -98,7 +139,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
 
-
   } catch (err) {
     console.error("Fehler bei User-Buchung:", err);
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
@@ -106,3 +146,106 @@ export async function POST(req: NextRequest) {
     if (conn) conn.release();
   }
 }
+
+// PUT: Admin-Aktionen (Annehmen/Ablehnen)
+export async function PUT(req: NextRequest) {
+  let conn: mariadb.PoolConnection | undefined;
+  
+  try {
+    const { booking_id, action } = await req.json();
+    
+    if (!booking_id || !action) {
+      return NextResponse.json(
+        { message: "booking_id und action sind erforderlich." },
+        { status: 400 }
+      );
+    }
+    
+    conn = await pool.getConnection();
+    
+    if (action === 'accept') {
+      // Buchung akzeptieren: booking_status = 1 (confirmed), timeslot_status = 2 (reserved)
+      await conn.query(`
+        UPDATE booking b
+        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+        SET b.booking_status = 1, t.timeslot_status = 2
+        WHERE b.booking_id = ?
+      `, [booking_id]);
+      
+      return NextResponse.json({ 
+        message: "Buchung akzeptiert.", 
+        booking_id: Number(booking_id) 
+      });
+      
+    } else if (action === 'reject') {
+      // Buchung ablehnen: booking_status = 2 (declined), timeslot_status = 1 (available) zurück setzen
+      await conn.query(`
+        UPDATE booking b
+        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+        SET b.booking_status = 2, t.timeslot_status = 1
+        WHERE b.booking_id = ?
+      `, [booking_id]);
+      
+      return NextResponse.json({ 
+        message: "Buchung abgelehnt.", 
+        booking_id: Number(booking_id) 
+      });
+      
+    } else {
+      return NextResponse.json(
+        { message: "Ungültige Aktion." },
+        { status: 400 }
+      );
+    }
+    
+  } catch (err) {
+    console.error("Fehler bei Admin-Aktion:", err);
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+// DELETE: Buchung löschen (optional, falls benötigt)
+export async function DELETE(req: NextRequest) {
+  let conn: mariadb.PoolConnection | undefined;
+  
+  try {
+    const booking_id = req.nextUrl.searchParams.get("booking_id");
+    
+    if (!booking_id) {
+      return NextResponse.json(
+        { message: "booking_id ist erforderlich." },
+        { status: 400 }
+      );
+    }
+    
+    conn = await pool.getConnection();
+    
+    // Timeslot status zurück auf available (1) setzen
+    await conn.query(`
+      UPDATE timeslot t
+      JOIN booking b ON t.timeslot_id = b.timeslot_id
+      SET t.timeslot_status = 1
+      WHERE b.booking_id = ?
+    `, [booking_id]);
+    
+    // Booking löschen
+    await conn.query(
+      "DELETE FROM booking WHERE booking_id = ?",
+      [booking_id]
+    );
+    
+    return NextResponse.json({ 
+      message: "Buchung gelöscht.", 
+      booking_id: Number(booking_id) 
+    });
+    
+  } catch (err) {
+    console.error("Fehler beim Löschen:", err);
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
