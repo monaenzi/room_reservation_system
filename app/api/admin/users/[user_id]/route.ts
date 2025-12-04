@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import bcrypt from "bcryptjs";
+// import { RouteParam } from "next/dist/client/route-params";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -11,21 +12,47 @@ const pool = mariadb.createPool({
   connectionLimit: 5,
 });
 
-export async function PUT(req: NextRequest) {
+type RouteParams = {
+    params: {
+        user_id: string;
+    };
+};
+
+export async function PUT(req: NextRequest, {params}: RouteParams) {
   let conn: mariadb.PoolConnection | undefined;
 
   
   try {
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const user_id = pathParts[pathParts.length - 1];
+   // const url = new URL(req.url);
+    //const pathParts = url.pathname.split('/');
+    //const user_id = pathParts[pathParts.length - 1];
+    const {user_id} = params;
 
-    const {first_name, last_name, email, phone_number, role, password} = await req.json();
-    if(!first_name && !last_name && !email && !phone_number && !role && !password) {
-        return NextResponse.json(
-            {message: "mindestens ein Feld muss angegeben werden."},
-            {status: 400}
-        );
+    console.log('PUT request for user_id:', user_id);
+
+
+    //const {first_name, last_name, email, phone_number, role, password} = await req.json();
+    //if(!first_name && !last_name && !email && !phone_number && !role && !password) {
+      //  return NextResponse.json(
+      //      {message: "mindestens ein Feld muss angegeben werden."},
+        //    {status: 400}
+        //);
+    //}     
+    if (!user_id || isNaN(parseInt(user_id))) {
+      return NextResponse.json(
+        { message: "Ungültige Benutzer-ID" },
+        { status: 400 }
+      );
+    }
+
+    const { first_name, last_name, email, phone_number, role, password } = 
+        await req.json();
+    
+    if (!first_name && !last_name && !email && !phone_number && !role && !password) {
+      return NextResponse.json(
+        { message: "Mindestens ein Feld muss angegeben werden." },
+        { status: 400 }
+      );
     }
 
 
@@ -47,7 +74,7 @@ export async function PUT(req: NextRequest) {
         [user_id]
     ); 
 
-    if(!userExists || userExists === 0) {
+    if(!userExists || userExists.length === 0) {
         return NextResponse.json(
             {message: "Benutzer nicht gefunden"},
             {status: 404}
@@ -90,9 +117,19 @@ export async function PUT(req: NextRequest) {
         values.push(hashedPassword);
     }
 
+    if (updates.length === 0) {
+      return NextResponse.json(
+        { message: "Keine Daten zum Aktualisieren" },
+        { status: 400 }
+      );
+    }
+
     values.push(user_id);
 
-    const query = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`
+    const query = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
+    console.log('Executing query:', query);
+    console.log('With values:', values);
+    
     await conn.query(query, values);
 
 
@@ -133,18 +170,27 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
     let conn: mariadb.PoolConnection | undefined;
 
     try {
-        const url = new URL(req.url);
-        const pathParts = url.pathname.split('/');
-        const user_id = pathParts[pathParts.length - 1];
+        //const url = new URL(req.url);
+        //const pathParts = url.pathname.split('/');
+        //const user_id = pathParts[pathParts.length - 1];
+        const {user_id}  = params;
+
+
+        if (!user_id || isNaN(parseInt(user_id))) {
+      return NextResponse.json(
+        { message: "Ungültige Benutzer-ID" },
+        { status: 400 }
+      );
+    }
 
         try {
             conn = await pool.getConnection();
         } catch(err) {
-            console.error("db Verbindung fehlgeschlagen:", err);
+            console.error("DB Verbindung fehlgeschlagen:", err);
             return NextResponse.json(
                 {message: "Verbidung zur DB nicht möglich"},
                 {status: 500}
@@ -156,7 +202,7 @@ export async function DELETE(req: NextRequest) {
             [user_id]
         );
 
-        if(!userExists || userExists === 0){
+        if(!userExists || userExists.length === 0){
             return NextResponse.json(
                 {message: "Benutzer nicht gefunden"},
                 {status: 404}
@@ -173,10 +219,16 @@ export async function DELETE(req: NextRequest) {
             [user_id]
         );
 
+        await conn.query(
+            "DELETE t FROM timeslot t JOIN booking b ON b.timeslot_id=t.timeslot_id WHERE b.user_id = ?",
+            [user_id]
+        );
+
+
         return NextResponse.json(
             {
                 message: "Benutzer erfolgreich gelöscht",
-                delete_user: {
+                deleted_user: {
                     user_id: userExists[0].user_id,
                     username: userExists[0].username
                 }
@@ -184,7 +236,7 @@ export async function DELETE(req: NextRequest) {
             {status: 200}
         );
     } catch(err){
-        console.error("Feheler beim User Löschen", err);
+        console.error("Fehler beim User Löschen", err);
         return NextResponse.json(
             {message: "Serverfehler"},
             {status: 500}
