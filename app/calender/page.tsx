@@ -98,7 +98,7 @@ export default function RoomsPage() {
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
-    
+
     const [adminRequests, setAdminRequests] = useState<BookingRequest[]>([]);
     const [isLoadingRequests, setIsLoadingRequests] = useState(false);
 
@@ -225,10 +225,10 @@ export default function RoomsPage() {
             hasError = true;
         }
 
-         if (endMinutes > 20 * 60) { 
-        setTimeError('Buchungen sind nur bis 20:00 Uhr möglich.');
-        hasError = true;
-    }
+        if (endMinutes > 20 * 60) {
+            setTimeError('Buchungen sind nur bis 20:00 Uhr möglich.');
+            hasError = true;
+        }
 
         if (!reason.trim()) {
             setReasonError('Bitte geben Sie einen Grund für die Buchung an.');
@@ -304,7 +304,7 @@ export default function RoomsPage() {
                     'Content-Type': 'application/json',
                 },
             });
-            
+
             if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
             const data = await res.json();
             setAdminRequests(data);
@@ -327,29 +327,29 @@ export default function RoomsPage() {
         if (!confirm(`Möchten Sie diese Buchung wirklich ${action === 'accept' ? 'annehmen' : 'ablehnen'}?`)) {
             return;
         }
-        
+
         try {
             const res = await fetch('/api/calendar', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ booking_id: bookingId, action })
             });
-            
+
             if (!res.ok) {
                 const error = await res.json();
                 throw new Error(error.message || 'Fehler bei der Aktion');
             }
-            
+
             // Liste neu laden
             loadAdminRequests();
-            
+
             // Timeslots für aktuellen Raum neu laden
             if (selectedRoomId) {
                 const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
                 const timeslotsData = await timeslotsRes.json();
                 setTimeslots(timeslotsData);
             }
-            
+
         } catch (err) {
             console.error('Fehler bei Admin-Aktion:', err);
             alert(err instanceof Error ? err.message : 'Fehler bei der Aktion');
@@ -407,7 +407,7 @@ export default function RoomsPage() {
             if (t.slot_date !== dateStr) return false;
             const startHour = getHourFromTime(t.start_time);
             const endHour = getHourFromTime(t.end_time);
-            
+
             // Zeitslot prüfen
             if (hour >= startHour && hour < endHour) {
                 // Nur als reserviert anzeigen, wenn booking_status = 1 (akzeptiert)
@@ -634,7 +634,7 @@ export default function RoomsPage() {
                             </div>
 
                             <div className="flex-1">
-                                
+
 
                                 <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
@@ -937,8 +937,16 @@ export default function RoomsPage() {
             {showRequestsPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-4xl min-h-[600px] max-h-[80vh] flex flex-col">
-                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Anfragen verwalten</h2>
-                        
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-[#0f692b]">Anfragen verwalten</h2>
+                            <button
+                                onClick={() => setRequestsShowPopup(false)}
+                                className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+                                aria-label="Schließen"
+                            >
+                                ×
+                            </button>
++                        </div>
                         {isLoadingRequests ? (
                             <div className="flex-1 flex items-center justify-center">
                                 <div className="text-gray-500">Lade Anfragen...</div>
@@ -950,8 +958,8 @@ export default function RoomsPage() {
                         ) : (
                             <div className="space-y-4 mb-6 flex-1 overflow-y-auto pr-2">
                                 {adminRequests.map((request) => (
-                                    <div 
-                                        key={request.booking_id} 
+                                    <div
+                                        key={request.booking_id}
                                         className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
                                     >
                                         <div className="flex justify-between items-start">
@@ -964,7 +972,7 @@ export default function RoomsPage() {
                                                         Ausstehend
                                                     </span>
                                                 </div>
-                                                
+
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Benutzer</div>
@@ -992,7 +1000,7 @@ export default function RoomsPage() {
                                                         <div className="text-sm text-gray-800">#{request.booking_id}</div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div>
                                                     <div className="text-sm font-medium text-gray-500">Grund</div>
                                                     <div className="text-sm text-gray-800 mt-1 p-3 bg-gray-50 rounded">
@@ -1000,12 +1008,12 @@ export default function RoomsPage() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="ml-4 flex flex-col gap-2">
                                                 <button
                                                     onClick={() => handleAdminAction(request.booking_id, 'accept')}
                                                     className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold 
-                                                             hover:bg-green-200 transition-colors flex items-center gap-2"
+                                                 hover:bg-green-200 transition-colors flex items-center gap-2"
                                                     aria-label="Anfrage annehmen"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1016,7 +1024,7 @@ export default function RoomsPage() {
                                                 <button
                                                     onClick={() => handleAdminAction(request.booking_id, 'reject')}
                                                     className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold 
-                                                             hover:bg-red-200 transition-colors flex items-center gap-2"
+                                                 hover:bg-red-200 transition-colors flex items-center gap-2"
                                                     aria-label="Anfrage ablehnen"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1030,16 +1038,6 @@ export default function RoomsPage() {
                                 ))}
                             </div>
                         )}
-                        
-                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
-                            <button
-                                onClick={() => setRequestsShowPopup(false)}
-                                className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
-                                         hover:bg-[#0a4d1f] transition-colors"
-                            >
-                                Schließen
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}
