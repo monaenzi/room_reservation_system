@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import bcrypt from "bcryptjs";
-// import { RouteParam } from "next/dist/client/route-params";
+import { RouteParam } from "next/dist/client/route-params";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -12,32 +12,26 @@ const pool = mariadb.createPool({
   connectionLimit: 5,
 });
 
-type RouteParams = {
+/* type RouteParams = {
     params: {
-        user_id: string;
+        user_id?: string;
+         id?: string;  
     };
-};
+}; */
 
-export async function PUT(req: NextRequest, {params}: RouteParams) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ user_id: string }> }
+) {
   let conn: mariadb.PoolConnection | undefined;
 
-  
   try {
-   // const url = new URL(req.url);
-    //const pathParts = url.pathname.split('/');
-    //const user_id = pathParts[pathParts.length - 1];
-    const {user_id} = params;
+    const resolved = await params;
+    console.log("DEBUG PUT resolved params:", resolved);
 
-    console.log('PUT request for user_id:', user_id);
+    const user_id = resolved.user_id;
+    console.log("DEBUG PUT user_id:", user_id);
 
-
-    //const {first_name, last_name, email, phone_number, role, password} = await req.json();
-    //if(!first_name && !last_name && !email && !phone_number && !role && !password) {
-      //  return NextResponse.json(
-      //      {message: "mindestens ein Feld muss angegeben werden."},
-        //    {status: 400}
-        //);
-    //}     
     if (!user_id || isNaN(parseInt(user_id))) {
       return NextResponse.json(
         { message: "Ungültige Benutzer-ID" },
@@ -45,9 +39,9 @@ export async function PUT(req: NextRequest, {params}: RouteParams) {
       );
     }
 
-    const { first_name, last_name, email, phone_number, role, password } = 
-        await req.json();
-    
+    const { first_name, last_name, email, phone_number, role, password } =
+      await req.json();
+
     if (!first_name && !last_name && !email && !phone_number && !role && !password) {
       return NextResponse.json(
         { message: "Mindestens ein Feld muss angegeben werden." },
@@ -55,66 +49,56 @@ export async function PUT(req: NextRequest, {params}: RouteParams) {
       );
     }
 
-
-
-    try{
-        conn = await pool.getConnection();
+    try {
+      conn = await pool.getConnection();
     } catch (err) {
-        console.error("DB Verbindung fehlgeschlagen:", err);
-        return NextResponse.json(
-            {message: "Verbindung zur DB nicht möglich"},
-            {status: 500}
-        );
+      console.error("DB Verbindung fehlgeschlagen:", err);
+      return NextResponse.json(
+        { message: "Verbindung zur DB nicht möglich" },
+        { status: 500 }
+      );
     }
-
-
 
     const userExists = await conn.query(
-        "SELECT user_id FROM users WHERE user_id = ? LIMIT 1",
-        [user_id]
-    ); 
+      "SELECT user_id FROM users WHERE user_id = ? LIMIT 1",
+      [user_id]
+    );
 
-    if(!userExists || userExists.length === 0) {
-        return NextResponse.json(
-            {message: "Benutzer nicht gefunden"},
-            {status: 404}
-        );
+    if (!userExists || userExists.length === 0) {
+      return NextResponse.json(
+        { message: "Benutzer nicht gefunden" },
+        { status: 404 }
+      );
     }
-
 
     const updates: string[] = [];
     const values: any[] = [];
 
-    if (first_name){
-        updates.push("first_name = ?");
-        values.push(first_name);
+    if (first_name) {
+      updates.push("first_name = ?");
+      values.push(first_name);
     }
-
-    if(last_name) {
-        updates.push("last_name = ?");
-        values.push(last_name);
+    if (last_name) {
+      updates.push("last_name = ?");
+      values.push(last_name);
     }
-
-    if(email) {
-        updates.push("email = ?");
-        values.push(email);
+    if (email) {
+      updates.push("email = ?");
+      values.push(email);
     }
-
-    if(phone_number){
-        updates.push("phone_number = ?");
-        values.push(phone_number);
+    if (phone_number) {
+      updates.push("phone_number = ?");
+      values.push(phone_number);
     }
-
     if (role) {
-        const role_id = role === "admin" ? 1 : 2;
-        updates.push("role_id = ?");
-        values.push(role_id);
+      const role_id = role === "admin" ? 1 : 2;
+      updates.push("role_id = ?");
+      values.push(role_id);
     }
-
     if (password) {
-        const hashedPassword = await bcrypt.hash(password, 12);
-        updates.push("password_hash = ?");
-        values.push(hashedPassword);
+      const hashedPassword = await bcrypt.hash(password, 12);
+      updates.push("password_hash = ?");
+      values.push(hashedPassword);
     }
 
     if (updates.length === 0) {
@@ -127,38 +111,33 @@ export async function PUT(req: NextRequest, {params}: RouteParams) {
     values.push(user_id);
 
     const query = `UPDATE users SET ${updates.join(", ")} WHERE user_id = ?`;
-    console.log('Executing query:', query);
-    console.log('With values:', values);
-    
+    console.log("Executing query:", query, "with", values);
+
     await conn.query(query, values);
 
-
-    const updateUser = await conn.query(
-        "SELECT user_id, username, first_name, last_name, email, phone_number, role_id FROM users WHERE user_id = ? LIMIT 1",
-        [user_id]
+    const updatedUser = await conn.query(
+      "SELECT user_id, username, first_name, last_name, email, phone_number, role_id FROM users WHERE user_id = ? LIMIT 1",
+      [user_id]
     );
 
-    const userData = updateUser[0];
+    const userData = updatedUser[0];
     const userRole = userData.role_id === 1 ? "admin" : "user";
 
-
     return NextResponse.json(
-        {
-            message : "Benutzer erfolgreich aktualisiert",
-            user: {
-                user_id: userData.user_id,
-                username: userData.username,
-                first_name: userData.first_name,
-                last_name: userData.last_name,
-                email: userData.email,
-                phone_number: userData.phone_number,
-                role: userRole
-            }
+      {
+        message: "Benutzer erfolgreich aktualisiert",
+        user: {
+          user_id: userData.user_id,
+          username: userData.username,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          email: userData.email,
+          phone_number: userData.phone_number,
+          role: userRole,
         },
+      },
       { status: 200 }
     );
-
-    
   } catch (err) {
     console.error("Unerwarteter Fehler:", err);
     return NextResponse.json(
@@ -170,25 +149,28 @@ export async function PUT(req: NextRequest, {params}: RouteParams) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
-    let conn: mariadb.PoolConnection | undefined;
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ user_id: string }> }
+) {
+  let conn: mariadb.PoolConnection | undefined;
 
     try {
-        //const url = new URL(req.url);
-        //const pathParts = url.pathname.split('/');
-        //const user_id = pathParts[pathParts.length - 1];
-        const {user_id}  = params;
+     const resolved = await params;
+    console.log("DEBUG DELETE resolved params:", resolved);
+    const user_id = resolved.user_id;
+    console.log("DEBUG DELETE rawId:", user_id);
 
-
-        if (!user_id || isNaN(parseInt(user_id))) {
+    if (!user_id || isNaN(parseInt(user_id))) {
       return NextResponse.json(
         { message: "Ungültige Benutzer-ID" },
         { status: 400 }
       );
     }
 
-        try {
-            conn = await pool.getConnection();
+    try {
+        conn = await pool.getConnection();
         } catch(err) {
             console.error("DB Verbindung fehlgeschlagen:", err);
             return NextResponse.json(
@@ -201,6 +183,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
             "SELECT user_id, username FROM users WHERE user_id = ? LIMIT 1",
             [user_id]
         );
+        console.log("DEBUG userExists:", userExists);
 
         if(!userExists || userExists.length === 0){
             return NextResponse.json(
