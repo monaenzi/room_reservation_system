@@ -273,3 +273,58 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
+// PATCH: Slot sperren (Admin) - Blockieren ohne blocked_by
+export async function PATCH(req: NextRequest) {
+  let conn: mariadb.PoolConnection | undefined;
+  
+  try {
+    const { room_id, slot_date, start_time, end_time, reason } = await req.json();
+    
+    if (!room_id || !slot_date || !start_time || !end_time) {
+      return NextResponse.json(
+        { message: "Raum, Datum, Start- und Endzeit sind erforderlich." },
+        { status: 400 }
+      );
+    }
+    
+    conn = await pool.getConnection();
+    
+    // Normalisiere Datum
+    const normalizedDate = slot_date.split("T")[0];
+    
+    // Prüfen, ob Zeitraum schon gebucht/blockiert ist
+    const existing = await conn.query(
+      `SELECT * FROM timeslot 
+       WHERE room_id = ? 
+       AND slot_date = ? 
+       AND start_time < ? 
+       AND end_time > ? 
+       AND timeslot_status IN (1, 2, 3)`, // Alle Status außer 0 (inactive)
+      [room_id, normalizedDate, end_time, start_time]
+    );
+    
+    if (existing.length > 0) {
+      return NextResponse.json(
+        { message: "Dieser Zeitraum ist bereits belegt." },
+        { status: 409 }
+      );
+    }
+    
+    // Blockierten Timeslot erstellen (status=3 → blocked)
+    const result: InsertResult = await conn.query(
+      "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status, blocked_reason) VALUES (?, ?, ?, ?, 3, ?)",
+      [room_id, normalizedDate, start_time, end_time, 3, reason || "Gesperrt durch Admin"]
+    );
+    
+    return NextResponse.json({ 
+      message: "Timeslot erfolgreich gesperrt.",
+      timeslot_id: Number(result.insertId)
+    }, { status: 201 });
+    
+  } catch (err) {
+    console.error("Fehler beim Sperren:", err);
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
+  } finally {
+    if (conn) conn.release();
+  }
+}

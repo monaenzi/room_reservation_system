@@ -380,17 +380,54 @@ export default function RoomsPage() {
         }
     };
 
-    const handleBlockSubmit = () => {
-        console.log('Admin Blocking:', {
-            room: blockRoomId,
-            date: blockDate,
-            allDay: blockAllDay,
-            from: blockStart,
-            to: blockEnd
+const handleBlockSubmit = async () => {
+    if (!blockDate) {
+        alert('Bitte wählen Sie ein Datum aus.');
+        return;
+    }
+
+    // Validation
+    const startMinutes = timeToMinutes(blockAllDay ? '08:00' : blockStart);
+    const endMinutes = timeToMinutes(blockAllDay ? '20:00' : blockEnd);
+    
+    if (endMinutes <= startMinutes) {
+        alert('Endzeit muss nach der Startzeit liegen.');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/calendar', {
+            method: 'PATCH', // Wichtig: PATCH statt POST
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                room_id: blockRoomId,
+                slot_date: blockDate,
+                start_time: blockAllDay ? '08:00' : blockStart,
+                end_time: blockAllDay ? '20:00' : blockEnd,
+                reason: blockAllDay ? 'Ganzer Tag gesperrt' : 'Zeitslot gesperrt'
+            })
         });
 
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.message || 'Fehler beim Sperren.');
+            return;
+        }
+
+        alert(`Slot erfolgreich gesperrt! ID: ${data.timeslot_id}`);
         setShowBlockPopup(false);
-    };
+
+        // Timeslots neu laden
+        fetch(`/api/calendar?room_id=${selectedRoomId}`)
+            .then(res => res.json())
+            .then(data => setTimeslots(data))
+            .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+
+    } catch (err) {
+        console.error('Fehler beim Sperren:', err);
+        alert('Fehler beim Sperren des Slots.');
+    }
+};
 
     // Funktion zum Laden der Admin-Anfragen
     const loadAdminRequests = async () => {
