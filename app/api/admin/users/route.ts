@@ -13,6 +13,49 @@ const pool = mariadb.createPool({
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || "Raum123!";
 
+
+
+export async function GET(req: NextRequest) {
+  let conn: mariadb.PoolConnection | undefined;
+
+  try {
+    conn = await pool.getConnection();
+
+    const users = await conn.query(`
+      SELECT
+        u.user_id as id,
+        u.username,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone_number as phone,
+        u.role_id,
+        r.role_name
+      FROM users u
+      LEFT JOIN role r ON u.role_id = r.role_id
+    `);
+
+    return NextResponse.json(
+      {
+        users: users,
+        total: users.length
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+
+
+
 export async function POST(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 
@@ -48,9 +91,11 @@ export async function POST(req: NextRequest) {
       );
 
       return NextResponse.json(
-        { message: "User erfolgreich angelegt.",
+        {
+          message: "User erfolgreich angelegt.",
           user_id: Number(result.insertId),
-          defaultPassword: DEFAULT_PASSWORD},
+          defaultPassword: DEFAULT_PASSWORD
+        },
         { status: 201 }
       );
     } catch (err: any) {

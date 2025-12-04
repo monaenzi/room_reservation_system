@@ -792,11 +792,11 @@ const handleBlockSubmit = async () => {
             {role === 'admin' && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed right-0 top-1/5 translate-x-1 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                    className="fixed right-0 top-1/4 sm:top-1/5 translate-x-1 z-50 w-14 h-16 sm:w-20 sm:h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
                 >
-                    <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                    <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                    <span className="w-8 h-1 bg-green-700 rounded-full" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
                 </button>
             )}
 
@@ -808,7 +808,7 @@ const handleBlockSubmit = async () => {
             )}
 
             <div
-                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`fixed top-0 right-0 h-full w-[75vw] sm:w-80 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
                     }`}
             >
                 <div className="flex flex-col h-full p-4">
@@ -835,7 +835,7 @@ const handleBlockSubmit = async () => {
             {/* Booking Popup */}
             {openBooking && (role === 'user' || role === 'admin') && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Raum buchen</h2>
@@ -1081,10 +1081,10 @@ const handleBlockSubmit = async () => {
 
             {/* Requests Popup */}
             {showRequestsPopup && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-4xl min-h-[600px] max-h-[80vh] flex flex-col">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-[#0f692b]">Anfragen verwalten</h2>
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md min-h-[600px] max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Anfragen verwalten</h2>
                             <button
                                 onClick={() => setRequestsShowPopup(false)}
                                 className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
@@ -1103,13 +1103,13 @@ const handleBlockSubmit = async () => {
                                 <div className="text-gray-500">Keine ausstehenden Anfragen</div>
                             </div>
                         ) : (
-                            <div className="space-y-4 mb-6 flex-1 overflow-y-auto pr-2">
+                            <div className="space-y-4 p-6 overflow-y-auto pr-2">
                                 {adminRequests.map((request) => (
                                     <div
                                         key={request.booking_id}
                                         className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
                                     >
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <span className="font-semibold text-lg text-gray-800">
@@ -1156,7 +1156,7 @@ const handleBlockSubmit = async () => {
                                                 </div>
                                             </div>
 
-                                            <div className="ml-4 flex flex-col gap-2">
+                                            <div className="flex flex-row sm:flex-col gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                                                 <button
                                                     onClick={() => handleAdminAction(request.booking_id, 'accept')}
                                                     className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold 
@@ -1191,7 +1191,7 @@ const handleBlockSubmit = async () => {
             {/* Block Popup */}
             {showBlockPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
 
                         {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -1206,7 +1206,7 @@ const handleBlockSubmit = async () => {
                         </div>
 
                         {/* Content */}
-                        <div className="px-5 py-6 space-y-4">
+                        <div className="px-5 py-6 space-y-4 overflow-y-auto">
 
                             {/* Raum */}
                             <div>
@@ -1257,7 +1257,7 @@ const handleBlockSubmit = async () => {
 
                             {/* Von / Bis – nur sichtbar wenn nicht ganzer Tag */}
                             {!blockAllDay && (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:gridcols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                             Von
@@ -1298,8 +1298,7 @@ const handleBlockSubmit = async () => {
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
                             <button
                                 onClick={handleBlockSubmit}
-                                className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
-                                           hover:bg-[#0a4d1f] transition-colors"
+                                className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
                                 Slot sperren
                             </button>

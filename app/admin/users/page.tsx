@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type User = {
   id: number;
@@ -9,8 +9,10 @@ type User = {
   username: string;
   email: string;
   phone?: string;
+  phone_number?: string;
   role_id: number;
   role_name?: string;
+  role?: string;
 }
 
 export default function AdminUsersPage() {
@@ -27,49 +29,9 @@ export default function AdminUsersPage() {
 
   const [showEditSection, setShowEditSection] = useState(false); //für Collapsible Panel
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 1,
-      first_name: "Alia",
-      last_name: "Alamer",
-      username: "a.alamer",
-      email: "alia.alamer@gmail.com",
-      phone: "0664/1234567",
-      role_id: 1,
-      role_name: "Admin"
-    },
-    {
-      id: 2,
-      first_name: "Ramona",
-      last_name: "Enzi",
-      username: "r.enzi",
-      email: "enzi.ramona@gmail.com",
-      phone: "0664/6543211",
-      role_id: 1,
-      role_name: "Admin"
-    },
-    {
-      id: 3,
-      first_name: "Linda",
-      last_name: "Kadyrova",
-      username: "l.kady",
-      email: "k.linda@gmail.com",
-      phone: "0660/4567890",
-      role_id: 2,
-      role_name: "User"
-    },
-    {
-      id: 4,
-      first_name: "Lucas",
-      last_name: "Wychodii-Lubi",
-      username: "l.wycho",
-      email: "l.wycho@gmail.com",
-      phone: "0670/135792",
-      role_id: 2,
-      role_name: "User"
-    }
-  ]);
 
   // für user bearbeitungs pupup
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -83,6 +45,31 @@ export default function AdminUsersPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editRoleId, setEditRoleId] = useState("");
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+
+  useEffect(() => {
+    if(showEditSection){
+      fetchUsers();
+    }
+  }, [showEditSection]);
+
+  async function fetchUsers() {
+    setLoadingUsers(true);
+    setError(null);
+    try{
+      const res = await fetch("/api/admin/users"); 
+      if(!res.ok) throw new Error("Fehler beim Laden der Benutzer");
+      const data = await res.json();
+      setUsers(data.users || data || []);
+    } catch (err) {
+      console.error(err);
+      setError("Konnte Benutzerliste nicht laden");
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
 
 
 
@@ -142,46 +129,98 @@ export default function AdminUsersPage() {
 
   // funktion um bearbeitungs popup zu öffnen
  function handleUserClick(user: User) {
+
+  console.log('User clicked:', user);
+  console.log('User ID:', user.id);
+  console.log('Full user object:', JSON.stringify(user, null, 2));
+
     setSelectedUser(user);
     // Formular mit Benutzerdaten befüllen
     setEditFirstName(user.first_name);
     setEditLastName(user.last_name);
     setEditUsername(user.username);
     setEditEmail(user.email);
-    setEditPhone(user.phone || "");
+ 
+    setEditPhone(user.phone_number || user.phone || ""); //vielleicht ist user.phone nicht nötig
     setEditRoleId(user.role_id.toString());
     setShowEditPopup(true);
   }
 
 //  um Bearbeitung zu speichern
-function handleSaveEdit() {
+async function handleSaveEdit() {
+  // Pruefe, ob ein Benutzer ausgewählt ist
   if (!selectedUser) return;
   
   setEditLoading(true);
-  
-  // Kurze Verzögerung 
-  setTimeout(() => {
-    // Lokal aktualisieren
-    setUsers(users.map(user => 
-      user.id === selectedUser.id 
-        ? {
-            ...user,
-            first_name: editFirstName,
-            last_name: editLastName,
-            username: editUsername,
-            email: editEmail,
-            phone: editPhone,
-            role_id: Number(editRoleId),
-            role_name: Number(editRoleId) === 1 ? "Admin" : "User"
-          }
-        : user
-    ));
+  setError(null);
+  setSuccess(null);
+
+
+  try{
+    // WICHTIG: Die API erwartet einen String "admin" oder "user" für role
+    const roleToSend = editRoleId === "1" ? "admin" : "user";
+    // KORREKTUR: Die zu aktualisierende ID muss dynamisch aus dem ausgewählten Objekt kommen.
+    const userIdToUpdate = selectedUser.id; 
     
-    setSuccess(`Benutzer ${editFirstName} ${editLastName} erfolgreich aktualisiert.`);
+    // DEBUG-LOGS (zur Fehleranalyse):
+    console.log('DEBUG: ID des ausgewählten Benutzers:', selectedUser.id, '| Typ:', typeof selectedUser.id);
+    console.log('DEBUG: Final zu sendende ID:', userIdToUpdate);
+
+
+    // Verwenden Sie die dynamische ID im fetch-Aufruf
+    const res = await fetch(`/api/edit-user/${userIdToUpdate}`, {
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        first_name: editFirstName,
+        last_name: editLastName,
+        email: editEmail,
+        phone_number: editPhone || null,
+        role: roleToSend,
+      }),
+    });
+
+
+    console.log('Response status:', res.status);
+
+
+    const data = await res.json().catch(() => ({ message: "Keine JSON-Antwort" }));
+    console.log('Response data:', data);
+
+    if(!res.ok) {
+      // Spezifische Behandlung für 409 Conflict (Duplikat) und 404 Fehler
+      if (res.status === 409) {
+          setError(data?.message || "Benutzername oder E-Mail bereits vergeben.");
+      } else if (res.status === 404){
+        // Angepasste Meldung, falls die ID nicht gefunden wird.
+        setError("Benutzer nicht gefunden. Bitte prüfen Sie, ob die gesendete ID korrekt ist.");
+      } else if(res.status === 400){
+        setError("Ungültige Eingabedaten");
+      } else if(res.status === 500){
+        setError("Serverfehler beim Aktualisieren")
+      } else {
+        setError(data?.message || `Fehler beim Speichern (Status: " ${res.status})`);
+      }
+      return;
+    }
+    setSuccess(data.message || "Benutzer erfolgreich aktualisiert");
+    setShowEditPopup(false);
+
+    // Benutzerliste neu laden, um die UI zu aktualisieren
+    await fetchUsers();
+
+    
     setShowEditPopup(false);
     setEditLoading(false);
-  }, 300); // für bessere UX
+  } catch(err){
+    console.error("Error in handleSaveEdit:", err);
+    setError("Verbindung zum Server nicht möglich");
+  } finally{
+    setEditLoading(false);
+  }
 }
+
+
 
 // Formular zurückzusetzen
 function handleResetEdit() {
@@ -190,7 +229,7 @@ function handleResetEdit() {
     setEditLastName(selectedUser.last_name);
     setEditUsername(selectedUser.username);
     setEditEmail(selectedUser.email);
-    setEditPhone(selectedUser.phone || "");
+    setEditPhone(selectedUser.phone_number || selectedUser.phone || ""); //selectedUser.phone muss vielleicht gelöscht werden
     setEditRoleId(selectedUser.role_id.toString());
   }
 }
@@ -199,31 +238,107 @@ function handleResetEdit() {
 function handleClosePopup() {
   setShowEditPopup(false);
   setSelectedUser(null);
+  setError(null);
+  setSuccess(null);
 }
 
 
-function handleDeleteUser(id: number, event: React.MouseEvent){
+async function handleDeleteUser(user_id: number, event: React.MouseEvent){
   event.stopPropagation();
 
   if(!confirm("Möchten Sie diesen User wirklich löschen?")) return;
 
-  setUsers(users.filter(user => user.id !== id));
-  setSuccess("User erfolgreich gelöscht");
+  setEditLoading(true);
+  setError(null);
+  setSuccess(null);
 
-  if (selectedUser && selectedUser.id === id){
-    setShowEditPopup(false);
-    setSelectedUser(null);
+  try{
+    const res = await fetch(`/api/edit-user/${user_id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError("Benutzer nicht gefunden.");
+        } else if (res.status === 500) {
+          setError("Serverfehler beim Löschen.");
+        } else {
+          setError(data?.message || "Fehler beim Löschen.");
+        }
+        return;
+      }
+
+      setSuccess(data.message || "User erfolgreich gelöscht");
+
+      await fetchUsers();
+
+      if (selectedUser && selectedUser.id === user_id) {
+        setShowEditPopup(false);
+        setSelectedUser(null);
+      }      
+  } catch(err){
+    console.error(err);
+    setError("Verbidung zum Server nicht möglich");
+  } finally{
+    setEditLoading(false);
+  }
+}
+
+async function confirmDelete() {
+  if(!userToDelete) return;
+
+  setEditLoading(true);
+  setError(null);
+  setSuccess(null);
+
+  try{
+    const res = await fetch(`/api/edit-user/${userToDelete.id}`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      if(res.status === 404){
+        setError("Benutzer nicht gefunden");
+      } else if (res.status === 500){
+        setError("Serverfehler beim Löschen");
+      } else {
+        setError(data?.message || "Fehelr beim Löschen")
+      }
+      return;
+    }
+
+    setSuccess(data.message || "User erfolgreich gelöscht");
+    await fetchUsers();
+    
+    if(selectedUser && selectedUser.id === userToDelete.id){
+      setShowEditPopup(false);
+      setSelectedUser(null);
+    }
+    setShowDeleteConfirm(false);
+    setUserToDelete(null);
+  } catch(err){
+    console.error(err);
+    setError("Verbindung zum Server nicht möglich");
+  } finally {
+    setEditLoading(false);
   }
 }
   
-
+function cancelDelete(){
+  setShowDeleteConfirm(false);
+  setUserToDelete(null);
+}
 
  
   return (
-    <main className="flex min-h-screen justify-center bg-neutral-100 px-4 py-8 pt-25 md:py-28 md:pt-40">
-      <section className="w-full max-w-3xl rounded-3xl bg-white px-6 py-8 shadow-xl mc:px-12 md:-10">
-        <header className="mb-8 text-center sm:text:left">
-          <h1 className="text-2xl font-bold text-green-700">
+    <main className="flex min-h-screen justify-center bg-neutral-100 px-3 pt-8 pt-24 pb-10 md:px-6 md:pt-32">
+      <section className="w-full max-w-4xl rounded-3xl bg-white px-4 py-6 shadow-xl sm:px-8 sm:py-10">
+        <header className="mb-8 text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold text-green-700">
             Userverwaltung
           </h1>
           <p className="mt-2 text-sm text-neutral-700">
@@ -399,7 +514,7 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
                   
                   <tbody>
                   {users.map((user) => (
-                    <tr key={user.id}
+                    <tr key={`${user.id}-${user.username}`} //!!!!!!!!!!
                     className="border-b border-green-200 hover:bg-green-100/50 cursor-pointer"
                     onClick={() => handleUserClick(user)}>
                       <td className="px-4 py-3 text-sm text-neutral-700">{user.first_name}</td>
@@ -409,16 +524,20 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
                         <span className="font-mono">**********</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-700">{user.email}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.phone || "N/A"}</td>
+                      <td className="px-4 py-3 text-sm text-neutral-700">{user.phone_number || user.phone || "N/A"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                             user.role_id === 1 
                               ? "bg-red-100 text-red-800" 
                               : "bg-blue-100 text-blue-800"
-                          }`}>{user.role_name || (user.role_id === 1 ? "Admin" : "User")}</span>
+                          }`}>{user.role_name || user.role || (user.role_id === 1 ? "Admin" : "User")}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <button onClick={(e) => handleDeleteUser(user.id, e)}
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          setUserToDelete(user);
+                          setShowDeleteConfirm(true);
+                        }}
                           className="text-red-600 hover:text-red-800 transition-color"
                           title="User löschen">
                             <svg
@@ -443,13 +562,11 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
               <div className="mt-6 flex justify-between items-center border-t border-green-200 pt-4">
                 <p className="text-sm text-neutral-600">Gesamt: {users.length} Benutzer</p>
               </div>
+              </>
+              )}
             </div>
           )}
-
         </div>
-
-        
-
       </section>
 
       {showEditPopup && selectedUser && (
@@ -506,9 +623,12 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
                 <input
                   type="text"
                   value={editUsername}
-                  onChange={(e) => setEditUsername(e.target.value)}
-                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
-                />  
+                  readOnly
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800 cursor-not-allowed"
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  Username kann nicht geändert werden
+                </p>
               </div>
 
 
@@ -570,10 +690,10 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
               <div className="flex justify-between pt-4">
                 <button
                   type="button"
-                  onClick={handleResetEdit}
+                  onClick={handleClosePopup}
                   className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
                 >
-                  Zurücksetzen
+                  Abbrechen
                 </button>
                 <button
                   type="button"
@@ -585,6 +705,54 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {showDeleteConfirm && userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="mb-1">
+              <h2 className="text-center text-3xl font-bold text-red-700">User löschen</h2>
+              <button onClick={cancelDelete} className="text-neutral-400 hover:text-neutral-600">
+                <svg className="text-neutral-400 hover:text-neutral-600">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-center">
+                <svg className="mx-auto h-20 w-20 text-red-500 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+
+                <h3 className="mt-4 text-lg font-semibold text-neutral-800">Möchten Sie diesen User wirklich löschen?</h3>
+
+                <p className="mt-2 text-neutral-600">
+                  <span className="font-semibold">{userToDelete.first_name} {userToDelete.last_name}</span>
+                  <br />
+                  ({userToDelete.email})
+                </p>
+              </div>
+
+              {error && (
+                <p className="text-center text-sm text-red-600">{error}</p>
+              )}
+              {success && !error && (
+                <p className="text-center text-sm text-green-700">{success}</p>
+              )}
+
+              <div className="flex justify-between pt-4">
+                <button type="button" onClick={cancelDelete} className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50">Abbrechen
+                </button>
+                <button type="button" onClick={confirmDelete} disabled={editLoading} className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-600/70">
+                {editLoading ? "Wird gelöscht..." : "Ja, löschen"}
+
+                </button>
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
