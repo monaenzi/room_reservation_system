@@ -18,11 +18,35 @@ type InsertResult = {
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
   const action = req.nextUrl.searchParams.get("action");
+  const user_id = req.nextUrl.searchParams.get("user_id"); // NEU: Für "Meine Buchungen"
   
   let conn: mariadb.PoolConnection | undefined;
   
   try {
     conn = await pool.getConnection();
+    
+    if (user_id) {
+      const userBookings = await conn.query(`
+        SELECT 
+          b.booking_id,
+          b.user_id,
+          b.timeslot_id,
+          b.reason,
+          b.booking_status,
+          t.room_id,
+          t.slot_date,
+          t.start_time,
+          t.end_time,
+          t.timeslot_status,
+          r.room_name
+        FROM booking b
+        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+        JOIN room r ON t.room_id = r.room_id
+        WHERE b.user_id = ?
+        ORDER BY t.slot_date DESC, t.start_time DESC
+      `, [user_id]);
+      return NextResponse.json(userBookings);
+    }
     
     // Wenn Admin nach Anfragen fragt
     if (action === 'admin-requests') {
@@ -42,7 +66,7 @@ export async function GET(req: NextRequest) {
           r.room_name
         FROM booking b
         JOIN timeslot t ON b.timeslot_id = t.timeslot_id
-        JOIN users u ON b.user_id = u.user_id  -- Hier: users statt user
+        JOIN users u ON b.user_id = u.user_id
         JOIN room r ON t.room_id = r.room_id
         WHERE b.booking_status = 0
         ORDER BY t.slot_date, t.start_time
@@ -206,7 +230,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE: Buchung löschen (optional, falls benötigt)
+// DELETE: Buchung löschen
 export async function DELETE(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
   
@@ -222,7 +246,7 @@ export async function DELETE(req: NextRequest) {
     
     conn = await pool.getConnection();
     
-    // Timeslot status zurück auf available (1) setzen
+    // Timeslot-Status auf available (1) setzen
     await conn.query(`
       UPDATE timeslot t
       JOIN booking b ON t.timeslot_id = b.timeslot_id
