@@ -74,6 +74,7 @@ export default function RoomsOverviewPage() {
                 const mappedRooms = data.rooms.map((r: any) => ({
                     ...r,
                     description: r.room_description || r.description,
+                    capacity: r.room_capacity,
                 }));
                 setRooms(mappedRooms);
             }
