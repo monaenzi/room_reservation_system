@@ -76,6 +76,7 @@ const role = user.role_id === 1 ? "admin" : "user";
       mustChangePassword,
       role,
       username: user.username,
+      userId: user.user_id
   },
       { status: 200 }
     );

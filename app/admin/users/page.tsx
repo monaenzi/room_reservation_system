@@ -22,8 +22,14 @@ export default function AdminUsersPage() {
   const [lastName, setLastName] = useState("");
   const [roleId, setRoleId] = useState("0");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  //const [error, setError] = useState<string | null>(null);
+ // const [success, setSuccess] = useState<string | null>(null);
+
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+
+  const [editError, setEditError] = useState<String | null>(null);
+  const[editSuccess, setEditSuccess] = useState<string | null>(null);
 
   const [showCreateSection, setShowCreateSection] = useState(true);
 
@@ -57,7 +63,7 @@ export default function AdminUsersPage() {
 
   async function fetchUsers() {
     setLoadingUsers(true);
-    setError(null);
+    setEditError(null);
     try{
       const res = await fetch("/api/admin/users"); 
       if(!res.ok) throw new Error("Fehler beim Laden der Benutzer");
@@ -65,7 +71,7 @@ export default function AdminUsersPage() {
       setUsers(data.users || data || []);
     } catch (err) {
       console.error(err);
-      setError("Konnte Benutzerliste nicht laden");
+      setEditError("Konnte Benutzerliste nicht laden");
     } finally {
       setLoadingUsers(false)
     }
@@ -76,8 +82,8 @@ export default function AdminUsersPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setCreateError(null);
+    setCreateSuccess(null);
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -96,16 +102,16 @@ export default function AdminUsersPage() {
 
       if (!res.ok) {
         if (res.status === 409) {
-          setError("Benutzername oder E-Mail ist bereits vergeben.");
+          setCreateError("Benutzername oder E-Mail ist bereits vergeben.");
         } else if (res.status === 500) {
-          setError("Fehler beim Anlegen des Users oder DB-Verbindung.");
+          setCreateError("Fehler beim Anlegen des Users oder DB-Verbindung.");
         } else {
-          setError(data?.message || "Anfrage fehlgeschlagen.");
+          setCreateError(data?.message || "Anfrage fehlgeschlagen.");
         }
         return;
       }
 
-      setSuccess(
+      setCreateSuccess(
         `User erfolgreich angelegt. Default-Passwort für Erstanmeldung: Raum123!`
       );
 
@@ -117,7 +123,7 @@ export default function AdminUsersPage() {
 
     } catch (err) {
       console.error(err);
-      setError("Verbindung zur Datenbank nicht möglich.");
+      setCreateError("Verbindung zur Datenbank nicht möglich.");
     } finally {
       setLoading(false);
     }
@@ -129,6 +135,8 @@ export default function AdminUsersPage() {
 
   // funktion um bearbeitungs popup zu öffnen
  function handleUserClick(user: User) {
+  setEditError(null);
+  setEditSuccess(null);
 
   console.log('User clicked:', user);
   console.log('User ID:', user.id);
@@ -152,20 +160,14 @@ async function handleSaveEdit() {
   if (!selectedUser) return;
   
   setEditLoading(true);
-  setError(null);
-  setSuccess(null);
+  setEditError(null);
+  setEditSuccess(null);
 
 
   try{
-    // WICHTIG: Die API erwartet einen String "admin" oder "user" für role
-    const roleToSend = editRoleId === "1" ? "admin" : "user";
-    // KORREKTUR: Die zu aktualisierende ID muss dynamisch aus dem ausgewählten Objekt kommen.
-    const userIdToUpdate = selectedUser.id; 
-    
-    // DEBUG-LOGS (zur Fehleranalyse):
-    console.log('DEBUG: ID des ausgewählten Benutzers:', selectedUser.id, '| Typ:', typeof selectedUser.id);
-    console.log('DEBUG: Final zu sendende ID:', userIdToUpdate);
 
+    const roleToSend = editRoleId === "1" ? "admin" : "user";
+    const userIdToUpdate = selectedUser.id; 
 
     // Verwenden Sie die dynamische ID im fetch-Aufruf
     const res = await fetch(`/api/admin/users/${userIdToUpdate}`, {
@@ -196,20 +198,20 @@ async function handleSaveEdit() {
     if(!res.ok) {
       // Spezifische Behandlung für 409 Conflict (Duplikat) und 404 Fehler
       if (res.status === 409) {
-          setError(data?.message || "Benutzername oder E-Mail bereits vergeben.");
+          setEditError(data?.message || "Benutzername oder E-Mail bereits vergeben.");
       } else if (res.status === 404){
         // Angepasste Meldung, falls die ID nicht gefunden wird.
-        setError("Benutzer nicht gefunden. Bitte prüfen Sie, ob die gesendete ID korrekt ist.");
+        setEditError("Benutzer nicht gefunden. Bitte prüfen Sie, ob die gesendete ID korrekt ist.");
       } else if(res.status === 400){
-        setError("Ungültige Eingabedaten");
+        setEditError("Ungültige Eingabedaten");
       } else if(res.status === 500){
-        setError("Serverfehler beim Aktualisieren")
+        setEditError("Serverfehler beim Aktualisieren")
       } else {
-        setError(data?.message || `Fehler beim Speichern (Status: " ${res.status})`);
+        setEditError(data?.message || `Fehler beim Speichern (Status: " ${res.status})`);
       }
       return;
     }
-    setSuccess(data.message || "Benutzer erfolgreich aktualisiert");
+    setEditSuccess(data.message || "Benutzer erfolgreich aktualisiert");
     setShowEditPopup(false);
     await fetchUsers();
     /* 
@@ -220,7 +222,7 @@ async function handleSaveEdit() {
     setEditLoading(false);*/
   } catch(err){
     console.error("Error in handleSaveEdit:", err);
-    setError("Verbindung zum Server nicht möglich");
+    setEditError("Verbindung zum Server nicht möglich");
   } finally{
     setEditLoading(false);
   }
@@ -244,8 +246,8 @@ function handleResetEdit() {
 function handleClosePopup() {
   setShowEditPopup(false);
   setSelectedUser(null);
-  setError(null);
-  setSuccess(null);
+  setEditError(null);
+  setEditSuccess(null);
 }
 
 
@@ -255,8 +257,8 @@ async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
   if (!confirm("Möchten Sie diesen User wirklich löschen?")) return;
 
   setEditLoading(true);
-  setError(null);
-  setSuccess(null);
+  setEditError(null);
+  setEditSuccess(null);
 
   try {
     console.log("DEBUG DIRECT DELETE id:", user_id);
@@ -275,19 +277,20 @@ async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
 
     console.log("DELETE status:", res.status, "data:", data);
 
-    if (!res.ok) {
-      if (res.status === 404) {
-        setError("Benutzer nicht gefunden.");
-      } else if (res.status === 500) {
-        setError("Serverfehler beim Löschen.");
-      } else {
-        setError(data?.message || "Fehler beim Löschen.");
+      if (!res.ok) {
+        if (res.status === 404) {
+          setEditError("Benutzer nicht gefunden.");
+        } else if (res.status === 500) {
+          setEditError("Serverfehler beim Löschen.");
+        } else {
+          setEditError(data?.message || "Fehler beim Löschen.");
+        }
+        return;
       }
-      return;
-    }
 
-    setSuccess(data.message || "User erfolgreich gelöscht");
-    await fetchUsers();
+      setEditSuccess(data.message || "User erfolgreich gelöscht");
+
+      await fetchUsers();
 
     if (selectedUser && selectedUser.id === user_id) {
       setShowEditPopup(false);
@@ -295,8 +298,8 @@ async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
     }
   } catch (err) {
     console.error(err);
-    setError("Verbindung zum Server nicht möglich");
-  } finally {
+    setEditError("Verbidung zum Server nicht möglich");
+  } finally{
     setEditLoading(false);
   }
 }
@@ -306,8 +309,8 @@ async function confirmDelete() {
   if(!userToDelete) return;
 
   setEditLoading(true);
-  setError(null);
-  setSuccess(null);
+  setEditError(null);
+  setEditSuccess(null);
 
   try{
     const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
@@ -326,16 +329,16 @@ async function confirmDelete() {
 
     if(!res.ok){
       if(res.status === 404){
-        setError("Benutzer nicht gefunden");
+        setEditError("Benutzer nicht gefunden");
       } else if (res.status === 500){
-        setError("Serverfehler beim Löschen");
+        setEditError("Serverfehler beim Löschen");
       } else {
-        setError(data?.message || "Fehelr beim Löschen")
+        setEditError(data?.message || "Fehelr beim Löschen")
       }
       return;
     }
 
-    setSuccess(data.message || "User erfolgreich gelöscht");
+    setEditSuccess(data.message || "User erfolgreich gelöscht");
     await fetchUsers();
     
     if(selectedUser && selectedUser.id === userToDelete.id){
@@ -346,7 +349,7 @@ async function confirmDelete() {
     setUserToDelete(null);
   } catch(err){
     console.error(err);
-    setError("Verbindung zum Server nicht möglich");
+    setEditError("Verbindung zum Server nicht möglich");
   } finally {
     setEditLoading(false);
   }
@@ -355,6 +358,8 @@ async function confirmDelete() {
 function cancelDelete(){
   setShowDeleteConfirm(false);
   setUserToDelete(null);
+  setEditError(null);
+  setEditSuccess(null);
 }
 
  
@@ -375,7 +380,7 @@ function cancelDelete(){
 
          <div className="mb-10">
           <button
-            onClick={() => setShowCreateSection(!showCreateSection)}
+            onClick={() => setShowCreateSection(!showCreateSection)}//  DFFFFFFFFFFF!!!
             className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
           >
             <h2 className="text-xl font-bold text-green-700">
@@ -475,11 +480,11 @@ function cancelDelete(){
             </select>
           </div>
 
-          {error && (
-            <p className="text-center text-sm font-medium text-red-600">{error}</p>
+          {createError && (
+            <p className="text-center text-sm font-medium text-red-600">{createError}</p>
           )}
-          {success && !error && (
-            <p className="text-center text-sm font-medium text-green-700">{success}</p>
+          {createSuccess && !createError && (
+            <p className="text-center text-sm font-medium text-green-700">{createSuccess}</p>
           )}
 
           <div className="pt-2 text-center">
@@ -499,7 +504,11 @@ function cancelDelete(){
 
           {/* collapsible section für benutzerbearbeitung */}
         <div className="border-t border-neutral-200 pt-10">
-          <button onClick={() => setShowEditSection(!showEditSection)}
+          <button onClick={() => {
+              setShowEditSection(!showEditSection);
+              setEditError(null); // Fehler zurücksetzen beim Öffnen/Schließen
+              setEditSuccess(null); // Erfolg zurücksetzen beim Öffnen/Schließen
+            }}
             className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100">
             <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
 
@@ -521,6 +530,12 @@ function cancelDelete(){
 
           {showEditSection && (
             <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
+              {editError && !showEditPopup && (
+                <p className="mb-4 text-center text-sm font-medium text-red-600">{editError}</p>
+              )}
+               {editSuccess && !showEditPopup && !editError && (
+                <p className="mb-4 text-center text-sm font-medium text-green-700">{editSuccess}</p>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full min-w-full border-collapse">
                   <thead>
@@ -703,11 +718,11 @@ function cancelDelete(){
 
 
              {/* Fehler/Success Meldungen */}
-              {error && (
-                <p className="text-center text-sm text-red-600">{error}</p>
+              {editError && (
+                <p className="text-center text-sm text-red-600">{editError}</p>
               )}
-              {success && !error && (
-                <p className="text-center text-sm text-green-700">{success}</p>
+              {editSuccess && !editError && (
+                <p className="text-center text-sm text-green-700">{editSuccess}</p>
               )}
 
               {/* Buttons */}
@@ -759,11 +774,11 @@ function cancelDelete(){
                 </p>
               </div>
 
-              {error && (
-                <p className="text-center text-sm text-red-600">{error}</p>
+              {editError && (
+                <p className="text-center text-sm text-red-600">{editError}</p>
               )}
-              {success && !error && (
-                <p className="text-center text-sm text-green-700">{success}</p>
+              {editSuccess && !editError && (
+                <p className="text-center text-sm text-green-700">{editSuccess}</p>
               )}
 
               <div className="flex justify-between pt-4">
