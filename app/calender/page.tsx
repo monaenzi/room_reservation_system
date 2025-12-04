@@ -225,6 +225,11 @@ export default function RoomsPage() {
             hasError = true;
         }
 
+         if (endMinutes > 20 * 60) { 
+        setTimeError('Buchungen sind nur bis 20:00 Uhr möglich.');
+        hasError = true;
+    }
+
         if (!reason.trim()) {
             setReasonError('Bitte geben Sie einen Grund für die Buchung an.');
             hasError = true;
@@ -334,9 +339,6 @@ export default function RoomsPage() {
                 const error = await res.json();
                 throw new Error(error.message || 'Fehler bei der Aktion');
             }
-            
-            // Erfolgsmeldung
-            alert(`Buchung erfolgreich ${action === 'accept' ? 'angenommen' : 'abgelehnt'}.`);
             
             // Liste neu laden
             loadAdminRequests();
