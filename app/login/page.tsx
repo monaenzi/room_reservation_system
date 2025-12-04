@@ -43,11 +43,13 @@ export default function LoginPage() {
       const mustChangePassword = data.mustChangePassword;
       const role = data.role || "user";
       const username = data.username || "";
+      const user_id = data.userId ? String(data.userId) : "";
 
       if (typeof window !== "undefined") {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("userRole", role);
         localStorage.setItem("username", username);
+        localStorage.setItem("user_id", user_id)
       }
 
       if (mustChangePassword) {
