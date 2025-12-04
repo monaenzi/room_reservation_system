@@ -18,7 +18,7 @@ type InsertResult = {
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
   const action = req.nextUrl.searchParams.get("action");
-  const user_id = req.nextUrl.searchParams.get("user_id"); // NEU: Für "Meine Buchungen"
+  const user_id = req.nextUrl.searchParams.get("user_id");
   
   let conn: mariadb.PoolConnection | undefined;
   
@@ -48,7 +48,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(userBookings);
     }
     
-    // Wenn Admin nach Anfragen fragt
     if (action === 'admin-requests') {
       const requests = await conn.query(`
         SELECT 
@@ -74,7 +73,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(requests);
     }
     
-    // Normale Timeslots für Raum
     if (room_id) {
       const timeslots = await conn.query(
         `SELECT 
@@ -118,22 +116,22 @@ export async function POST(req: NextRequest) {
 
     conn = await pool.getConnection();
 
-    // Datum normalisieren (YYYY-MM-DD)
     const normalizedDate = slot_date.split("T")[0];
 
-    // Prüfen, ob dieser Zeitraum schon gebucht ist
+    // Prüfen, ob dieser Zeitraum schon gebucht oder blockiert ist
     const existing = await conn.query(
       `SELECT * FROM timeslot 
        WHERE room_id = ? 
        AND slot_date = ? 
        AND start_time < ? 
-       AND end_time > ?`,
+       AND end_time > ? 
+       AND timeslot_status IN (2, 3)`, // Nur reserved (2) oder blocked (3)
       [room_id, normalizedDate, end_time, start_time]
     );
 
     if (existing.length > 0) {
       return NextResponse.json(
-        { message: "Dieser Zeitraum ist bereits gebucht." },
+        { message: "Dieser Zeitraum ist bereits belegt." },
         { status: 409 }
       );
     }
@@ -202,16 +200,34 @@ export async function PUT(req: NextRequest) {
       });
       
     } else if (action === 'reject') {
-      // Buchung ablehnen: booking_status = 2 (declined), timeslot_status = 1 (available) zurück setzen
-      await conn.query(`
-        UPDATE booking b
-        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
-        SET b.booking_status = 2, t.timeslot_status = 1
-        WHERE b.booking_id = ?
-      `, [booking_id]);
+      // Timeslot-ID holen bevor buchung löschen
+      const bookingInfo = await conn.query(
+        `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
+        [booking_id]
+      );
+      
+      if (bookingInfo.length === 0) {
+        return NextResponse.json(
+          { message: "Buchung nicht gefunden." },
+          { status: 404 }
+        );
+      }
+      
+      const timeslot_id = bookingInfo[0].timeslot_id;
+      
+      
+      await conn.query(
+        "DELETE FROM booking WHERE booking_id = ?",
+        [booking_id]
+      );
+      
+      await conn.query(
+        "DELETE FROM timeslot WHERE timeslot_id = ?",
+        [timeslot_id]
+      );
       
       return NextResponse.json({ 
-        message: "Buchung abgelehnt.", 
+        message: "Buchung abgelehnt und Timeslot gelöscht.", 
         booking_id: Number(booking_id) 
       });
       
@@ -230,7 +246,6 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE: Buchung löschen
 export async function DELETE(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
   
@@ -246,22 +261,33 @@ export async function DELETE(req: NextRequest) {
     
     conn = await pool.getConnection();
     
-    // Timeslot-Status auf available (1) setzen
-    await conn.query(`
-      UPDATE timeslot t
-      JOIN booking b ON t.timeslot_id = b.timeslot_id
-      SET t.timeslot_status = 1
-      WHERE b.booking_id = ?
-    `, [booking_id]);
+    // Timeslot-ID holen
+    const bookingInfo = await conn.query(
+      `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
+      [booking_id]
+    );
     
-    // Booking löschen
+    if (bookingInfo.length === 0) {
+      return NextResponse.json(
+        { message: "Buchung nicht gefunden." },
+        { status: 404 }
+      );
+    }
+    
+    const timeslot_id = bookingInfo[0].timeslot_id;
+    
     await conn.query(
       "DELETE FROM booking WHERE booking_id = ?",
       [booking_id]
     );
     
+    await conn.query(
+      "DELETE FROM timeslot WHERE timeslot_id = ?",
+      [timeslot_id]
+    );
+    
     return NextResponse.json({ 
-      message: "Buchung gelöscht.", 
+      message: "Buchung und Timeslot gelöscht.", 
       booking_id: Number(booking_id) 
     });
     
@@ -273,7 +299,7 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// PATCH: Slot sperren (Admin) - Blockieren ohne blocked_by
+// Slot sperren (Admin)
 export async function PATCH(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
   
@@ -289,7 +315,6 @@ export async function PATCH(req: NextRequest) {
     
     conn = await pool.getConnection();
     
-    // Normalisiere Datum
     const normalizedDate = slot_date.split("T")[0];
     
     // Prüfen, ob Zeitraum schon gebucht/blockiert ist
@@ -299,7 +324,7 @@ export async function PATCH(req: NextRequest) {
        AND slot_date = ? 
        AND start_time < ? 
        AND end_time > ? 
-       AND timeslot_status IN (1, 2, 3)`, // Alle Status außer 0 (inactive)
+       AND timeslot_status IN (1, 2, 3)`,
       [room_id, normalizedDate, end_time, start_time]
     );
     
