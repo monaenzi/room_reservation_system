@@ -15,40 +15,28 @@ type Room = {
     image_url?: string | null; // URL from image storage
 };
 
-const MOCK_ROOMS: Room[] = [
-    {
-        room_id: 1,
-        room_name: 'Raum 1',
-        description: 'Großer Raum mit insgesamt 12 Arbeitsplätzen und zusätzlichen Stühlen bei Bedarf. Ideal für Gruppenarbeiten und Meetings. Der Raum verfügt über einen Beamer, Kaffeemaschinen und Kühlschrank. Zusätlich zu den Arbeitsplätzen gibt es eine gemütliche Sitzecke mit zwei Couches zum Entspannen.',
-        capacity: 20,
-        floor_number: 0,
-        building: 'WS46b',
-        is_visible: true,
-        image_url: '/pictures/room1.jpg',
-    },
-    {
-        room_id: 2,
-        room_name: 'Raum 2',
-        description: 'Kleinerer Raum mit 3 Arbeitsplätzen und zusätzlich Stühlen bei Bedarf. Der Raum eignet sich besonders für Einzelarbeit oder kleine Gruppen. Ausgestattet mit 3 Monitoren und einem Drucker.',
-        capacity: 8,
-        floor_number: 0,
-        building: 'WS46b',
-        is_visible: true,
-        image_url: '/pictures/room2.jpg',
-    },
-];
-
 export default function RoomsOverviewPage() {
-    const [role, setRole] = useState<Role>('guest');
+    const [role, setRole] = useState<Role>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('userRole') as Role) || 'guest';
+        }
+        return 'guest';
+    });
+
+    const [userId, setUserId] = useState<string | null>(() => {
+        if (typeof window !== 'undefined') {
+            return (localStorage.getItem('user_id'));
+        }
+        return null;
+    });
+
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-            const storedRole = (localStorage.getItem('userRole') as Role) || 'guest';
 
             if (!isLoggedIn) setRole('guest');
-            else if (storedRole === 'admin') setRole('admin');
-            else setRole('user');
         }
     }, []);
 
@@ -71,9 +59,34 @@ export default function RoomsOverviewPage() {
     const [isHideRoomOpen, setIsHideRoomOpen] = useState(false);
     const [roomsToHide, setRoomsToHide] = useState<number[]>([]);
 
-    const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS);
+    const [rooms, setRooms] = useState<Room[]>([]);
 
     const displayedRooms = isAdmin ? rooms : rooms.filter((r) => r.is_visible);
+
+    const fetchRooms = async () => {
+        setIsLoading(true);
+        try {
+            const query = isAdmin ? '' : '?visible=true';
+            const res = await fetch(`/api/rooms${query}`);
+            const data = await res.json();
+
+            if (res.ok) {
+                const mappedRooms = data.rooms.map((r: any) => ({
+                    ...r,
+                    description: r.room_description || r.description,
+                }));
+                setRooms(mappedRooms);
+            }
+        } catch (err) {
+            console.error("Failed to fetch rooms", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRooms();
+    }, [role]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -87,21 +100,41 @@ export default function RoomsOverviewPage() {
         }
     };
 
-    const handleAddRoom = () => {
-        const newRoomId = rooms.length > 0 ? Math.max(...rooms.map(r => r.room_id)) + 1 : 1;
-        const newRoom: Room = {
-            room_id: newRoomId,
-            room_name: roomName || `Raum ${newRoomId}`,
-            description: roomDescription || null,
-            capacity: roomCapacity ? parseInt(roomCapacity) : null,
-            floor_number: roomFloor ? parseInt(roomFloor) : null,
-            building: roomBuilding || null,
-            is_visible: true,
-            image_url: imagePreview || null,
-        };
-        setRooms(prevRooms => [...prevRooms, newRoom]);
-        resetForm();
-        setIsAddRoomOpen(false);
+    const handleAddRoom = async () => {
+        if (!roomName) {
+            alert("Raumname ist erforderlich.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('room_name', roomName);
+        formData.append('room_description', roomDescription);
+        formData.append('room_capacity', roomCapacity);
+        formData.append('floor_number', roomFloor);
+        formData.append('building', roomBuilding);
+        formData.append('created_by', userId || '1');
+
+        if (selectedImage) {
+            formData.append('image', selectedImage);
+        }
+
+        try {
+            const res = await fetch('/api/rooms', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (res.ok) {
+                await fetchRooms();
+                resetForm();
+                setIsAddRoomOpen(false);
+            } else {
+                const err = await res.json()
+                alert(`Fehler : ${err.message}`);
+            }
+        } catch (err) {
+            console.error("Error adding room", err);
+        }
     };
 
     const handleRoomSelection = (roomId: number) => {
@@ -114,10 +147,33 @@ export default function RoomsOverviewPage() {
         });
     };
 
-    const handleDeleteRooms = () => {
-        setRooms(prevRooms => prevRooms.filter(room => !selectedRooms.includes(room.room_id)));
-        setSelectedRooms([]);
-        setIsDeleteRoomOpen(false);
+    const handleDeleteRooms = async () => {
+        if (!userId){
+            alert("Sitzung ungültig - bitte erneut anmelden.");
+            return
+        }
+
+        try {
+            await Promise.all(selectedRooms.map(id => {
+                return fetch(`/api/rooms`, { 
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type' : 'application/json'
+                    },
+                    body: JSON.stringify({
+                        room_id: id,
+                        admin_id: userId
+                    })
+                });
+            }));
+
+            await fetchRooms();
+            setSelectedRooms([]);
+            setIsDeleteRoomOpen(false);
+        } catch (err) {
+            console.error("Error deleting rooms", err);
+            alert("Fehler beim Löschen der Räume.");
+        }
     };
 
     const handleSelectAll = () => {
@@ -140,15 +196,41 @@ export default function RoomsOverviewPage() {
         });
     };
 
-    const handleHideRooms = () => {
-        setRooms(prevRooms => prevRooms.map(room => roomsToHide.includes(room.room_id) ? { ...room, is_visible: false } : room));
+    const updateRoomVisibility = async (ids: number[], isVisible: boolean) => {
+        if (!userId) {
+            alert("Sitzung ungültig - bitte erneut anmelden.");
+            return;
+        }
+
+        try {
+            await Promise.all(ids.map(id => {
+                return fetch('/api/rooms', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ 
+                        room_id: id,
+                        is_visible: isVisible,
+                        admin_id: userId
+                    }),
+                });
+            }));
+            await fetchRooms();
+        } catch (err) {
+            console.error("Error updating room visibility", err);
+            alert("Fehler beim Aktualisieren der Sichtbarkeit.");
+        }
+    };
+
+    const handleHideRooms = async () => {
+        await updateRoomVisibility(roomsToHide, false);
         setRoomsToHide([]);
         setIsHideRoomOpen(false);
     };
 
-    const handleUnhideRooms = () => {
-        setRooms(prevRooms => prevRooms.map(room =>
-            roomsToHide.includes(room.room_id) ? { ...room, is_visible: true } : room));
+    const handleUnhideRooms = async () => {
+        await updateRoomVisibility(roomsToHide, true);
         setRoomsToHide([]);
         setIsHideRoomOpen(false);
     };
@@ -190,10 +272,14 @@ export default function RoomsOverviewPage() {
         <>
             <main className="flex justify-center px-3 py-6 mt-20 sm:px-4 sm:py-10 sm:mt-24">
                 <div className="w-full max-w-5xl space-y-6 md:space-y-10">
-                    {displayedRooms.length === 0 && (
+                    {displayedRooms.length === 0 && !isLoading && (
                         <div className="text-center text-gray-500">
                             Es sind noch keine Räume vorhanden.
                         </div>
+                    )}
+
+                    {isLoading && (
+                        <div className="text-center text-gray-500">Lade Räume...</div>
                     )}
 
                     {displayedRooms.map((room, index) => (
