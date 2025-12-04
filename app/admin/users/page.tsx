@@ -220,10 +220,10 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
 
  
   return (
-    <main className="flex min-h-screen justify-center bg-neutral-100 px-4 py-8 pt-25 md:py-28 md:pt-40">
-      <section className="w-full max-w-3xl rounded-3xl bg-white px-6 py-8 shadow-xl mc:px-12 md:-10">
-        <header className="mb-8 text-center sm:text:left">
-          <h1 className="text-2xl font-bold text-green-700">
+    <main className="flex min-h-screen justify-center bg-neutral-100 px-3 pt-8 pt-24 pb-10 md:px-6 md:pt-32">
+      <section className="w-full max-w-4xl rounded-3xl bg-white px-4 py-6 shadow-xl sm:px-8 sm:py-10">
+        <header className="mb-8 text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold text-green-700">
             Userverwaltung
           </h1>
           <p className="mt-2 text-sm text-neutral-700">
@@ -381,7 +381,7 @@ function handleDeleteUser(id: number, event: React.MouseEvent){
           </button>
 
           {showEditSection && (
-            <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
+            <div className="rounded-xl border-2 border-green-700 bg-green-50 p-4 sm:p-6">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-full border-collapse">
                   <thead>
