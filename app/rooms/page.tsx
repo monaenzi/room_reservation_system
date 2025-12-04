@@ -275,11 +275,11 @@ export default function RoomsOverviewPage() {
                     {!isSidebarOpen && (
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="fixed right-0 top-1/5 translate-x-1 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                            className="fixed right-0 top-1/4 sm:top-1/5 translate-x-1 z-50 w-14 h-16 sm:w-20 sm:h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
                         >
-                            <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                            <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                            <span className="w-8 h-1 bg-green-700 rounded-full" />
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
                         </button>
                     )}
 
@@ -293,7 +293,7 @@ export default function RoomsOverviewPage() {
 
                     {/* Sidebar */}
                     <div
-                        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                        className={`fixed top-0 right-0 h-full w-[75vw] sm:w-80 bg-white shadow-2xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
                             }`}
                     >
                         <div className="flex flex-col h-full p-4">
@@ -341,7 +341,7 @@ export default function RoomsOverviewPage() {
                         <div className="fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-4"
                             onClick={handleCancel}>
 
-                            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
                                 onClick={(e) => e.stopPropagation()}>
 
                                 <div className="p-6 border-b border-gray-200">
@@ -349,7 +349,7 @@ export default function RoomsOverviewPage() {
                                 </div>
 
 
-                                <div className='p-6 space-y-4'>
+                                <div className='p-6 space-y-4 overflow-y-auto'>
                                     <div>
                                         <label className='block text-sm font-medium text-gray-700 mb-2'>Name</label>
                                         <input type="text" value={roomName} onChange={(e) => setRoomName(e.target.value)} className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition' placeholder='Raumname eingeben' />
@@ -386,7 +386,7 @@ export default function RoomsOverviewPage() {
                                         </div>
                                     </div>
 
-                                    <div className='grid grid-cols-2 gap-4'>
+                                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                                         <div>
                                             <label className='block text-sm font-medium text-gray-700 mb-2'>Kapazität</label>
                                             <input type="number"
@@ -414,7 +414,7 @@ export default function RoomsOverviewPage() {
 
                                     </div>
                                 </div>
-                                <div className='p-6 border-t border-gray-200 flex gap-3'>
+                                <div className='p-6 border-t border-gray-200 flex flex-col-reverse sm: flex-row gap-3 flex-shrink-0'>
                                     <button onClick={handleCancel}
                                         className='flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors'>Abbrechen</button>
                                     <button onClick={handleAddRoom}
@@ -430,7 +430,7 @@ export default function RoomsOverviewPage() {
                             onClick={handleCancelDelete}
                         >
                             <div
-                                className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                                className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {/* Popup Header */}
@@ -441,7 +441,7 @@ export default function RoomsOverviewPage() {
                                 </div>
 
                                 {/* Popup Content */}
-                                <div className="p-6">
+                                <div className="p-6 overflow-y-auto">
                                     {/* Select All Checkbox */}
                                     <div className="mb-4 flex items-center">
                                         <input
@@ -457,7 +457,7 @@ export default function RoomsOverviewPage() {
                                     </div>
 
                                     {/* Room List */}
-                                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                                    <div className="space-y-3">
                                         {rooms.map((room) => (
                                             <div
                                                 key={room.room_id}
@@ -505,7 +505,7 @@ export default function RoomsOverviewPage() {
                                 </div>
 
                                 {/* Popup Footer */}
-                                <div className="p-6 border-t border-gray-200 flex gap-3">
+                                <div className="p-6 border-t border-gray-200 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
                                     <button
                                         onClick={handleCancelDelete}
                                         className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
@@ -531,14 +531,14 @@ export default function RoomsOverviewPage() {
                         <div className='fixed inset-0 bg-black/50 z-60 flex items-center justify-center p-4' onClick={handleCancelHide}>
 
                             <div
-                                className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+                                className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className='p-6 border-b border-gray-200'>
 
                                     <h2 className='text-2xl font-bold text-[#0f692b] text-center'>Raum ausblenden/sperren</h2>
                                 </div>
-                                <div className='p-6'>
+                                <div className='p-6 overflow-y-auto'>
                                     <div className='mb-4 flex items-center'>
                                         <input type="checkbox"
                                             id='select-all-hide'
@@ -548,7 +548,7 @@ export default function RoomsOverviewPage() {
                                         <label htmlFor="select-all-hide" className='ml-3 text-sm font-medium text-gray-700'>Alle auswählen</label>
                                     </div>
 
-                                    <div className='space-y-3 max-h-80 overflow-y-auto'>
+                                    <div className='space-y-3'>
                                         {rooms.map((room) => (
                                             <div
                                                 key={room.room_id}
@@ -598,11 +598,11 @@ export default function RoomsOverviewPage() {
                                         </p>
                                     </div>
                                 </div>
-                                <div className='p-6 border-t border-gray-200 flex gap-3'>
+                                <div className='p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 flex-shrink-0'>
                                     <button onClick={handleCancelHide}
-                                        className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                                        className="w-full sm:flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors order-2 sm:order-1"
                                     >Abbrechen</button>
-                                    <div className="flex flex-1 gap-2">
+                                    <div className="flex flex-row gap-2 w-full sm:flex-1 order-1 sm:order-2">
                                         <button onClick={handleHideRooms}
                                             disabled={roomsToHide.length === 0}
                                             className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${roomsToHide.length === 0

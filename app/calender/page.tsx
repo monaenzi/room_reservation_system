@@ -14,6 +14,22 @@ type Timeslot = {
     end_time: string;
     blocked_reason?: string;
     name?: string;
+    booking_status?: number;
+};
+
+type BookingRequest = {
+    booking_id: number;
+    user_id: number;
+    timeslot_id: number;
+    reason: string;
+    booking_status: number;
+    room_id: number;
+    slot_date: string;
+    start_time: string;
+    end_time: string;
+    timeslot_status: number;
+    username: string;
+    room_name: string;
 };
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i);
@@ -36,16 +52,6 @@ const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
     const minute = i % 2 === 0 ? '00' : '30';
     return `${hour.toString().padStart(2, '0')}:${minute}`;
 });
-
-// const MOCK_TIMESLOTS: Timeslot[] = [
-//     { timeslot_id: 1, room_id: 1, status: 1, slot_date: '2025-11-18', start_time: '14:00:00', end_time: '17:00:00', name: 'Team Meeting' },
-//     { timeslot_id: 2, room_id: 1, status: 1, slot_date: '2025-11-20', start_time: '09:00:00', end_time: '12:00:00', name: 'Project Review' },
-//     { timeslot_id: 3, room_id: 2, status: 1, slot_date: '2025-11-19', start_time: '10:00:00', end_time: '13:00:00', name: 'Client Presentation' },
-//     { timeslot_id: 4, room_id: 1, status: 1, slot_date: '2025-11-25', start_time: '11:00:00', end_time: '14:00:00', name: 'Workshop' },
-//     { timeslot_id: 5, room_id: 2, status: 1, slot_date: '2025-11-27', start_time: '15:00:00', end_time: '18:00:00', name: 'Training' },
-//     { timeslot_id: 6, room_id: 1, status: 1, slot_date: '2025-11-11', start_time: '08:00:00', end_time: '11:00:00', name: 'Planning Session' },
-// ];
-
 
 function getMonday(date: Date): Date {
     const d = new Date(date);
@@ -93,6 +99,9 @@ export default function RoomsPage() {
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
 
+    const [adminRequests, setAdminRequests] = useState<BookingRequest[]>([]);
+    const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+
     // Admin sidebar states
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showRequestsPopup, setRequestsShowPopup] = useState(false);
@@ -114,7 +123,7 @@ export default function RoomsPage() {
     const [reason, setReason] = useState('');
     const [timeError, setTimeError] = useState('');
     const [reasonError, setReasonError] = useState('');
-    
+
     // Booking list popup state
     const [openBookingList, setOpenBookingList] = useState(false);
 
@@ -123,7 +132,7 @@ export default function RoomsPage() {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
             const storedRole = (localStorage.getItem('userRole') as Role) || 'guest';
 
-            console.log('Current Auth State from LocalStorage:', {isLoggedIn, storedRole});
+            console.log('Current Auth State from LocalStorage:', { isLoggedIn, storedRole });
 
             if (!isLoggedIn) setRole('guest');
             else if (storedRole === 'admin') setRole('admin');
@@ -155,9 +164,18 @@ export default function RoomsPage() {
         fetchTimeslots();
     }, [selectedRoomId]);
 
+    useEffect(() => {
+        const today = new Date();
+        const index = today.getDay() - 1;
+
+        if (index >= 0 && index < 4) {
+            setCurrentDayIndex(index);
+        }
+    }, []);
+
     // Function to open popup on cell click
     const handleCellClick = (dateIndex: number, hour: number) => {
-        if (role !== 'user') return;
+        if (role !== 'user' && role !== 'admin') return;
 
         if (isReserved(dateIndex, hour)) return;
 
@@ -204,6 +222,11 @@ export default function RoomsPage() {
 
         if (duration < 30) {
             setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
+            hasError = true;
+        }
+
+        if (endMinutes > 20 * 60) {
+            setTimeError('Buchungen sind nur bis 20:00 Uhr möglich.');
             hasError = true;
         }
 
@@ -271,6 +294,68 @@ export default function RoomsPage() {
         setShowBlockPopup(false);
     };
 
+    // Funktion zum Laden der Admin-Anfragen
+    const loadAdminRequests = async () => {
+        setIsLoadingRequests(true);
+        try {
+            const res = await fetch('/api/calendar?action=admin-requests', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
+            const data = await res.json();
+            setAdminRequests(data);
+        } catch (err) {
+            console.error('Fehler beim Laden der Admin-Anfragen:', err);
+            alert('Fehler beim Laden der Anfragen');
+        } finally {
+            setIsLoadingRequests(false);
+        }
+    };
+
+    // Admin-Requests-Popup öffnen (mit Daten laden)
+    const handleOpenRequestsPopup = () => {
+        loadAdminRequests();
+        setRequestsShowPopup(true);
+    };
+
+    // Funktion zum Annehmen/Ablehnen von Buchungen
+    const handleAdminAction = async (bookingId: number, action: 'accept' | 'reject') => {
+        if (!confirm(`Möchten Sie diese Buchung wirklich ${action === 'accept' ? 'annehmen' : 'ablehnen'}?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/calendar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booking_id: bookingId, action })
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Fehler bei der Aktion');
+            }
+
+            // Liste neu laden
+            loadAdminRequests();
+
+            // Timeslots für aktuellen Raum neu laden
+            if (selectedRoomId) {
+                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+                const timeslotsData = await timeslotsRes.json();
+                setTimeslots(timeslotsData);
+            }
+
+        } catch (err) {
+            console.error('Fehler bei Admin-Aktion:', err);
+            alert(err instanceof Error ? err.message : 'Fehler bei der Aktion');
+        }
+    };
+
     const weekDates = useMemo(() => {
         return WEEKDAYS.map((_, index) => {
             const date = new Date(currentWeekStart);
@@ -301,6 +386,15 @@ export default function RoomsPage() {
         return currentWeekStart.toDateString() === todayMonday.toDateString();
     }, [currentWeekStart]);
 
+    const showMobileTodayButton = useMemo(() => {
+        if (!isCurrentWeek) return true;
+
+        const today = new Date();
+        const currentRealDayIndex = today.getDay() - 1;
+
+        return currentDayIndex !== currentRealDayIndex;
+    }, [isCurrentWeek, currentDayIndex]);
+
     // Get available end times based on start time
     const availableEndTimes = useMemo(() => {
         const startMinutes = timeToMinutes(startTime);
@@ -313,7 +407,13 @@ export default function RoomsPage() {
             if (t.slot_date !== dateStr) return false;
             const startHour = getHourFromTime(t.start_time);
             const endHour = getHourFromTime(t.end_time);
-            return hour >= startHour && hour < endHour;
+
+            // Zeitslot prüfen
+            if (hour >= startHour && hour < endHour) {
+                // Nur als reserviert anzeigen, wenn booking_status = 1 (akzeptiert)
+                return t.booking_status === 1;
+            }
+            return false;
         });
     };
 
@@ -343,7 +443,13 @@ export default function RoomsPage() {
     };
 
     const goToCurrentWeek = () => {
-        setCurrentWeekStart(getMonday(new Date()));
+        const today = new Date();
+
+        setCurrentWeekStart(getMonday(today));
+
+        const dayIndex = today.getDay() - 1;
+
+        setCurrentDayIndex(dayIndex >= 0 && dayIndex < 4 ? dayIndex : 0);
     };
 
     const goToPreviousDay = () => {
@@ -436,10 +542,10 @@ export default function RoomsPage() {
                         </button>
 
                         <div className="text-center flex-1 min-w-0">
-                            <div className="text-[11px] font-semibold text-[#0f692b] truncate">
+                            <div className="text-[15px] font-bold text-[#0f692b] truncate">
                                 {formatFullDate(weekDates[currentDayIndex])}
                             </div>
-                            {!isCurrentWeek && (
+                            {showMobileTodayButton && (
                                 <button
                                     onClick={goToCurrentWeek}
                                     className="mt-0.5 text-[9px] text-[#0f692b] underline hover:text-[#0a4d1f]"
@@ -496,7 +602,7 @@ export default function RoomsPage() {
                                                     'relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && role === 'user' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
+                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
@@ -513,14 +619,14 @@ export default function RoomsPage() {
                     </div>
 
                     {/* Mobile Daily View */}
-                    <div className="md:hidden rounded-xl bg-white p-1 max-h-[60vh] overflow-y-auto">
+                    <div className="md:hidden rounded-xl bg-white p-1 max-h-[80vh] overflow-y-auto">
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
                                 <div className="h-6 flex items-center justify-center"></div>
                                 {HOURS.map((hour) => (
                                     <div
                                         key={hour}
-                                        className="flex min-h-[24px] items-center justify-center text-[8px] font-medium text-gray-500"
+                                        className="flex min-h-[38.5px] items-center justify-center text-[8px] font-semibold text-gray-500"
                                     >
                                         {hour.toString().padStart(2, '0')}:00
                                     </div>
@@ -528,13 +634,9 @@ export default function RoomsPage() {
                             </div>
 
                             <div className="flex-1">
-                                <div className="rounded-t-lg border-2 border-[#0f692b] border-b-0 py-0.5 text-center bg-[#0f692b]">
-                                    <div className="text-[10px] font-bold text-white">
-                                        {WEEKDAYS[currentDayIndex]}
-                                    </div>
-                                </div>
 
-                                <div className="flex flex-col rounded-b-lg border-2 border-[#0f692b] overflow-hidden">
+
+                                <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
                                         const reserved = isReserved(currentDayIndex, hour);
                                         const start = isReservationStart(currentDayIndex, hour);
@@ -543,14 +645,14 @@ export default function RoomsPage() {
                                                 key={hour}
                                                 onClick={() => handleCellClick(currentDayIndex, hour)}
                                                 className={[
-                                                    'relative flex min-h-[24px] items-center justify-center border-t border-[#0f692b]',
+                                                    'relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]',
                                                     idx === 0 ? 'border-t-0' : '',
                                                     reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && role === 'user' ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
+                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
                                                 ].filter(Boolean).join(' ')}
                                             >
                                                 {start && (
-                                                    <span className="text-[8px] font-semibold text-[#a3158f]">
+                                                    <span className="text-[10px] font-semibold text-[#a3158f]">
                                                         Reserviert
                                                     </span>
                                                 )}
@@ -567,11 +669,11 @@ export default function RoomsPage() {
             {role === 'admin' && (
                 <button
                     onClick={() => setIsSidebarOpen(true)}
-                    className="fixed right-0 top-1/5 translate-x-1 z-50 w-20 h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                    className="fixed right-0 top-1/4 sm:top-1/5 translate-x-1 z-50 w-14 h-16 sm:w-20 sm:h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
                 >
-                    <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                    <span className="w-8 h-1 bg-green-700 rounded-full mb-1" />
-                    <span className="w-8 h-1 bg-green-700 rounded-full" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
                 </button>
             )}
 
@@ -583,7 +685,7 @@ export default function RoomsPage() {
             )}
 
             <div
-                className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`fixed top-0 right-0 h-full w-[75vw] sm:w-80 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
                     }`}
             >
                 <div className="flex flex-col h-full p-4">
@@ -595,7 +697,7 @@ export default function RoomsPage() {
                     </button>
 
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
-                    <button onClick={() => setRequestsShowPopup(true)}
+                    <button onClick={handleOpenRequestsPopup}
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
@@ -608,9 +710,9 @@ export default function RoomsPage() {
             </div>
 
             {/* Booking Popup */}
-            {openBooking && role === 'user' && (
+            {openBooking && (role === 'user' || role === 'admin') && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Raum buchen</h2>
@@ -833,23 +935,109 @@ export default function RoomsPage() {
 
             {/* Requests Popup */}
             {showRequestsPopup && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md min-h-[600px] max-h-[80vh] flex flex-col">
-                        <h2 className="text-2xl font-bold text-[#0f692b] text-center mb-6">Anfragen verwalten</h2>
-
-                        <div className="space-y-3 mb-6 flex-1 overflow-y-auto">
-                            {/* Hier DB-Daten einfügen */}
-                        </div>
-
-                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md min-h-[600px] max-h-[90vh] flex flex-col">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Anfragen verwalten</h2>
                             <button
                                 onClick={() => setRequestsShowPopup(false)}
-                                className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
-                                           hover:bg-[#0a4d1f] transition-colors"
+                                className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+                                aria-label="Schließen"
                             >
-                                Schließen
+                                ×
                             </button>
-                        </div>
++                        </div>
+                        {isLoadingRequests ? (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-gray-500">Lade Anfragen...</div>
+                            </div>
+                        ) : adminRequests.length === 0 ? (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-gray-500">Keine ausstehenden Anfragen</div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 p-6 overflow-y-auto pr-2">
+                                {adminRequests.map((request) => (
+                                    <div
+                                        key={request.booking_id}
+                                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <span className="font-semibold text-lg text-gray-800">
+                                                        {request.room_name}
+                                                    </span>
+                                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+                                                        Ausstehend
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-500">Benutzer</div>
+                                                        <div className="text-sm text-gray-800">{request.username}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-500">Datum</div>
+                                                        <div className="text-sm text-gray-800">
+                                                            {new Date(request.slot_date).toLocaleDateString('de-DE', {
+                                                                weekday: 'long',
+                                                                day: '2-digit',
+                                                                month: '2-digit',
+                                                                year: 'numeric'
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-500">Zeit</div>
+                                                        <div className="text-sm text-gray-800">
+                                                            {formatTimeForDisplay(request.start_time)} - {formatTimeForDisplay(request.end_time)} Uhr
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-500">Buchungs-ID</div>
+                                                        <div className="text-sm text-gray-800">#{request.booking_id}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <div className="text-sm font-medium text-gray-500">Grund</div>
+                                                    <div className="text-sm text-gray-800 mt-1 p-3 bg-gray-50 rounded">
+                                                        {request.reason}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-row sm:flex-col gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                                                <button
+                                                    onClick={() => handleAdminAction(request.booking_id, 'accept')}
+                                                    className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold 
+                                                 hover:bg-green-200 transition-colors flex items-center gap-2"
+                                                    aria-label="Anfrage annehmen"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Annehmen
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAdminAction(request.booking_id, 'reject')}
+                                                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold 
+                                                 hover:bg-red-200 transition-colors flex items-center gap-2"
+                                                    aria-label="Anfrage ablehnen"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                    Ablehnen
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -857,8 +1045,8 @@ export default function RoomsPage() {
             {/* Block Popup */}
             {showBlockPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-                        
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+
                         {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Tage / Zeitslots sperren</h2>
@@ -872,7 +1060,7 @@ export default function RoomsPage() {
                         </div>
 
                         {/* Content */}
-                        <div className="px-5 py-6 space-y-4">
+                        <div className="px-5 py-6 space-y-4 overflow-y-auto">
 
                             {/* Raum */}
                             <div>
@@ -914,7 +1102,7 @@ export default function RoomsPage() {
                                     id="block-all-day"
                                     checked={blockAllDay}
                                     onChange={() => setBlockAllDay(!blockAllDay)}
-                                 className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                    className="w-5 h-5 accent-[#0f692b] cursor-pointer"
                                 />
                                 <label htmlFor="block-all-day" className="text-sm font-medium text-gray-700">
                                     Ganzer Tag sperren
@@ -923,7 +1111,7 @@ export default function RoomsPage() {
 
                             {/* Von / Bis – nur sichtbar wenn nicht ganzer Tag */}
                             {!blockAllDay && (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:gridcols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                             Von
@@ -964,8 +1152,7 @@ export default function RoomsPage() {
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
                             <button
                                 onClick={handleBlockSubmit}
-                                className="px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold 
-                                           hover:bg-[#0a4d1f] transition-colors"
+                                className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
                                 Slot sperren
                             </button>
