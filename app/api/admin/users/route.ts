@@ -13,8 +13,6 @@ const pool = mariadb.createPool({
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || "Raum123!";
 
-
-
 export async function GET(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 

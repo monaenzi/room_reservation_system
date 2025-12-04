@@ -168,7 +168,7 @@ async function handleSaveEdit() {
 
 
     // Verwenden Sie die dynamische ID im fetch-Aufruf
-    const res = await fetch(`/api/edit-user/${userIdToUpdate}`, {
+    const res = await fetch(`/api/admin/users${userIdToUpdate}`, {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
@@ -253,7 +253,7 @@ async function handleDeleteUser(user_id: number, event: React.MouseEvent){
   setSuccess(null);
 
   try{
-    const res = await fetch(`/api/edit-user/${user_id}`, {
+    const res = await fetch(`/api/admin/users${user_id}`, {
       method: "DELETE",
     });
 
@@ -294,7 +294,7 @@ async function confirmDelete() {
   setSuccess(null);
 
   try{
-    const res = await fetch(`/api/edit-user/${userToDelete.id}`, {
+    const res = await fetch(`/api/admin/users${userToDelete.id}`, {
       method: "DELETE",
     });
 
@@ -562,8 +562,6 @@ function cancelDelete(){
               <div className="mt-6 flex justify-between items-center border-t border-green-200 pt-4">
                 <p className="text-sm text-neutral-600">Gesamt: {users.length} Benutzer</p>
               </div>
-              </>
-              )}
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import bcrypt from "bcryptjs";
-import { RouteParam } from "next/dist/client/route-params";
+// import { RouteParam } from "next/dist/client/route-params";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -45,7 +45,8 @@ export async function PUT(req: NextRequest, {params}: RouteParams) {
       );
     }
 
-    const { first_name, last_name, email, phone_number, role, password } = await req.json();
+    const { first_name, last_name, email, phone_number, role, password } = 
+        await req.json();
     
     if (!first_name && !last_name && !email && !phone_number && !role && !password) {
       return NextResponse.json(
@@ -189,7 +190,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         try {
             conn = await pool.getConnection();
         } catch(err) {
-            console.error("db Verbindung fehlgeschlagen:", err);
+            console.error("DB Verbindung fehlgeschlagen:", err);
             return NextResponse.json(
                 {message: "Verbidung zur DB nicht möglich"},
                 {status: 500}
@@ -217,6 +218,12 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
             "DELETE FROM users WHERE user_id = ?",
             [user_id]
         );
+
+        await conn.query(
+            "DELETE t FROM timeslot t JOIN booking b ON b.timeslot_id=t.timeslot_id WHERE b.user_id = ?",
+            [user_id]
+        );
+
 
         return NextResponse.json(
             {
