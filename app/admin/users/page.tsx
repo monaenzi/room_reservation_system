@@ -168,7 +168,7 @@ async function handleSaveEdit() {
 
 
     // Verwenden Sie die dynamische ID im fetch-Aufruf
-    const res = await fetch(`/api/admin/users${userIdToUpdate}`, {
+    const res = await fetch(`/api/admin/users/${userIdToUpdate}`, {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
@@ -180,12 +180,18 @@ async function handleSaveEdit() {
       }),
     });
 
+    const text = await res.text();
+    let data: any;
+    try{
+      data = text ? JSON.parse(text) : {};
+    }catch{
+      data={message: "Antwort war kein gültiges JSON", raw: text}
+    }
+    
 
-    console.log('Response status:', res.status);
+    console.log('Response status:', res.status, "data:", data);
 
 
-    const data = await res.json().catch(() => ({ message: "Keine JSON-Antwort" }));
-    console.log('Response data:', data);
 
     if(!res.ok) {
       // Spezifische Behandlung für 409 Conflict (Duplikat) und 404 Fehler
@@ -205,13 +211,13 @@ async function handleSaveEdit() {
     }
     setSuccess(data.message || "Benutzer erfolgreich aktualisiert");
     setShowEditPopup(false);
-
-    // Benutzerliste neu laden, um die UI zu aktualisieren
     await fetchUsers();
-
+    /* 
+    // Benutzerliste neu laden, um die UI zu aktualisieren
+    await fetchUsers(); 
     
     setShowEditPopup(false);
-    setEditLoading(false);
+    setEditLoading(false);*/
   } catch(err){
     console.error("Error in handleSaveEdit:", err);
     setError("Verbindung zum Server nicht möglich");
@@ -243,48 +249,58 @@ function handleClosePopup() {
 }
 
 
-async function handleDeleteUser(user_id: number, event: React.MouseEvent){
+async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
   event.stopPropagation();
 
-  if(!confirm("Möchten Sie diesen User wirklich löschen?")) return;
+  if (!confirm("Möchten Sie diesen User wirklich löschen?")) return;
 
   setEditLoading(true);
   setError(null);
   setSuccess(null);
 
-  try{
-    const res = await fetch(`/api/admin/users${user_id}`, {
+  try {
+    console.log("DEBUG DIRECT DELETE id:", user_id);
+
+    const res = await fetch(`/api/admin/users/${user_id}`, {
       method: "DELETE",
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { message: "Antwort war kein gültiges JSON", raw: text };
+    }
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          setError("Benutzer nicht gefunden.");
-        } else if (res.status === 500) {
-          setError("Serverfehler beim Löschen.");
-        } else {
-          setError(data?.message || "Fehler beim Löschen.");
-        }
-        return;
+    console.log("DELETE status:", res.status, "data:", data);
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        setError("Benutzer nicht gefunden.");
+      } else if (res.status === 500) {
+        setError("Serverfehler beim Löschen.");
+      } else {
+        setError(data?.message || "Fehler beim Löschen.");
       }
+      return;
+    }
 
-      setSuccess(data.message || "User erfolgreich gelöscht");
+    setSuccess(data.message || "User erfolgreich gelöscht");
+    await fetchUsers();
 
-      await fetchUsers();
-
-      if (selectedUser && selectedUser.id === user_id) {
-        setShowEditPopup(false);
-        setSelectedUser(null);
-      }      
-  } catch(err){
+    if (selectedUser && selectedUser.id === user_id) {
+      setShowEditPopup(false);
+      setSelectedUser(null);
+    }
+  } catch (err) {
     console.error(err);
-    setError("Verbidung zum Server nicht möglich");
-  } finally{
+    setError("Verbindung zum Server nicht möglich");
+  } finally {
     setEditLoading(false);
   }
 }
+
 
 async function confirmDelete() {
   if(!userToDelete) return;
@@ -294,11 +310,19 @@ async function confirmDelete() {
   setSuccess(null);
 
   try{
-    const res = await fetch(`/api/admin/users${userToDelete.id}`, {
+    const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
       method: "DELETE",
     });
 
-    const data = await res.json();
+     const text = await res.text();
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { message: "Antwort war kein gültiges JSON", raw: text };
+    }
+
+    console.log("DELETE status:", res.status, "data:", data);
 
     if(!res.ok){
       if(res.status === 404){
@@ -535,8 +559,10 @@ function cancelDelete(){
                       <td className="px-4 py-3">
                         <button onClick={(e) => {
                           e.stopPropagation();
+                          console.log("DELETE POPUP USER:", user);
                           setUserToDelete(user);
                           setShowDeleteConfirm(true);
+
                         }}
                           className="text-red-600 hover:text-red-800 transition-color"
                           title="User löschen">
