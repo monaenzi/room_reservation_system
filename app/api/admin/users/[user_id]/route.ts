@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import bcrypt from "bcryptjs";
-import { RouteParam } from "next/dist/client/route-params";
+// import { RouteParam } from "next/dist/client/route-params";
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
