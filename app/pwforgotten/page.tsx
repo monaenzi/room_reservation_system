@@ -49,7 +49,7 @@ export default function PasswordForgottenPage() {
   }
 
   return (
-    <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80 pt-15 md:pt-35 md:pb-20">
+    <main className="relative flex min-h-screen items-center justify-center bg-black/80 pt-15 md:pt-35 md:pb-20">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
           src="/pictures/picture2.jpeg"
@@ -59,7 +59,7 @@ export default function PasswordForgottenPage() {
       </div>
 
       <div className="absolute inset-0 bg-black/20" />
-      <section className="relative z-10 w-full max-w-md mx-4 rounded-[32px] bg-white px-6 py-8 shadow-2xl sm:max-w-xl sm:px-10 sm:py-12 md:px-14 md:py-14">
+      <section className="relative z-10 w-full max-w-md mx-4 rounded-[32px] bg-white px-8 py-10 shadow-2xl sm:max-w-xl sm:px-10 sm:py-12 md:px-14 md:py-14">
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-2xl font-bold text-green-700 sm:text-3xl md:text-4xl">
             Passwort vergessen

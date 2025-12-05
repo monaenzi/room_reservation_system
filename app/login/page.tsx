@@ -39,13 +39,34 @@ export default function LoginPage() {
         }
         return;
       }
-      
+
       const mustChangePassword = data.mustChangePassword;
       const role = data.role || "user";
+      const username = data.username || "";
+
+      // 🔥 WICHTIG: userId sauber aus der Response holen
+      const userId: number | null =
+        typeof data.userId === "number"
+          ? data.userId
+          : typeof data.user_id === "number"
+            ? data.user_id
+            : null;
 
       if (typeof window !== "undefined") {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("userRole", role);
+        localStorage.setItem("username", username);
+
+        // 🔥 HIER: Konsistent "userId" speichern (nicht "user_id")
+        if (userId !== null) {
+          localStorage.setItem("userId", String(userId));
+          console.log("Login: userId in LocalStorage gespeichert:", userId);
+        } else {
+          console.warn(
+            "Login: Keine gültige userId in der API-Antwort, LocalStorage userId wird NICHT gesetzt.",
+            data
+          );
+        }
       }
 
       if (mustChangePassword) {
@@ -56,6 +77,7 @@ export default function LoginPage() {
         return;
       }
 
+      setSuccess(true);
       router.push("/");
     } catch (err: any) {
       console.error(err);
@@ -66,7 +88,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80 pt-10 md:pt-25">
+    <main className="relative flex min-h-screen items-center justify-center bg-black/80 pt-20 pb-12 px-4 md:pt-25">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
           src="/pictures/picture2.jpeg"
@@ -77,7 +99,7 @@ export default function LoginPage() {
 
       <div className="absolute inset-0 bg-black/20" />
 
-      <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-6 py-8 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
+      <section className="relative z-12 w-full max-w-md mx-4 rounded-[32px] bg-white px-8 py-10 shadow-2xl sm:max-w-xl sm:px-12 sm:py-12 md:px-25 md:py-7">
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-2xl font-bold text-green-700 sm:text-4xl md:text-5xl">
             Login
@@ -89,7 +111,7 @@ export default function LoginPage() {
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" autoComplete="off">
           <div className="relative">
             <div className="absolute -left-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-white shadow-md sm:-left-4 sm:-top-4 sm:h-10 sm:w-10">
               <img
@@ -101,6 +123,7 @@ export default function LoginPage() {
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Beispiel@fh-joanneum.at"
@@ -121,6 +144,7 @@ export default function LoginPage() {
               type="password"
               required
               value={password}
+              autoComplete="new-password"
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Passwort"
               className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-2 pl-5 text-sm outline-none focus:border-green-800 sm:py-3 sm:pl-6"
@@ -142,7 +166,7 @@ export default function LoginPage() {
               Login erfolgreich.
             </p>
           )}
-          <div className="pt-2 text-center">
+          <div className="pt-2 pb-2 text-center">
             <button
               type="submit"
               disabled={loading}

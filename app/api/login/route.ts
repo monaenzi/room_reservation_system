@@ -34,14 +34,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-  
     const rows = await conn.query(
-      "SELECT user_id, email, password_hash, first_login, account_deactivated, role_id FROM users WHERE email = ? LIMIT 1",
+      `SELECT 
+         user_id,
+         email,
+         username,
+         password_hash,
+         first_login,
+         account_deactivated,
+         role_id
+       FROM users 
+       WHERE email = ? 
+       LIMIT 1`,
       [email]
     );
 
     if (!rows || rows.length === 0) {
-           return NextResponse.json(
+      return NextResponse.json(
         { message: "Ungültige Zugangsdaten." },
         { status: 401 }
       );
@@ -62,20 +71,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (user.account_deactivated) {
-  return NextResponse.json(
-    { message: "Dieser Account ist deaktiviert." },
-    { status: 403 }
-  );
-}
+      return NextResponse.json(
+        { message: "Dieser Account ist deaktiviert." },
+        { status: 403 }
+      );
+    }
 
-const mustChangePassword = user.first_login === 0;
-const role = user.role_id === 1 ? "admin" : "user"; 
+    const mustChangePassword = user.first_login === 0;
+    const role = user.role_id === 1 ? "admin" : "user";
 
+    // ⬇⬇ Nur Daten zurückgeben – kein localStorage hier!
     return NextResponse.json(
-      { message: "Login erfolgreich.",
-      mustChangePassword,
-      role,
-  },
+      { 
+        message: "Login erfolgreich.",
+        mustChangePassword,
+        role,
+        username: user.username,
+        user_id: user.user_id  // <--- WICHTIG
+      },
       { status: 200 }
     );
   } catch (err) {
