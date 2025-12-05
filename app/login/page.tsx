@@ -39,17 +39,34 @@ export default function LoginPage() {
         }
         return;
       }
-      
+
       const mustChangePassword = data.mustChangePassword;
       const role = data.role || "user";
       const username = data.username || "";
-      const user_id = data.userId ? String(data.userId) : "";
+
+      // 🔥 WICHTIG: userId sauber aus der Response holen
+      const userId: number | null =
+        typeof data.userId === "number"
+          ? data.userId
+          : typeof data.user_id === "number"
+            ? data.user_id
+            : null;
 
       if (typeof window !== "undefined") {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("userRole", role);
         localStorage.setItem("username", username);
-        localStorage.setItem("user_id", user_id)
+
+        // 🔥 HIER: Konsistent "userId" speichern (nicht "user_id")
+        if (userId !== null) {
+          localStorage.setItem("userId", String(userId));
+          console.log("Login: userId in LocalStorage gespeichert:", userId);
+        } else {
+          console.warn(
+            "Login: Keine gültige userId in der API-Antwort, LocalStorage userId wird NICHT gesetzt.",
+            data
+          );
+        }
       }
 
       if (mustChangePassword) {
@@ -60,6 +77,7 @@ export default function LoginPage() {
         return;
       }
 
+      setSuccess(true);
       router.push("/");
     } catch (err: any) {
       console.error(err);

@@ -8,15 +8,18 @@ type Weekday = 'Montag' | 'Dienstag' | 'Mittwoch' | 'Donnerstag' | 'Freitag';
 type Timeslot = {
     timeslot_id: number;
     room_id: number;
-    status: number;
-    slot_date: string;
-    start_time: string;
+    timeslot_status: number;
+    slot_date: string | Date;
+    start_time: string
     end_time: string;
     blocked_reason?: string;
     name?: string;
     booking_status?: number;
     user_id?: number;
+    username?: string;
 };
+
+
 
 type BookingRequest = {
     booking_id: number;
@@ -92,9 +95,11 @@ function getWeekRange(monday: Date): string {
 }
 
 function toISODate(date: Date): string {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
-
 function getHourFromTime(timeStr: string): number {
     return parseInt(timeStr.split(':')[0], 10);
 }
@@ -107,6 +112,17 @@ function timeToMinutes(time: string): number {
 function formatTimeForDisplay(timeStr: string): string {
     return timeStr.substring(0, 5); // Remove seconds if present
 }
+
+
+function normalizeSlotDate(dbDate: string | Date): string {
+    if (!dbDate) return "";
+    if (dbDate instanceof Date) {
+        return dbDate.toISOString().split("T")[0];
+    }
+    // ISO-String oder nur "YYYY-MM-DD"
+    return dbDate.split("T")[0];
+}
+
 
 function getBookingStatusText(status: number): string {
     switch (status) {
@@ -183,7 +199,18 @@ export default function RoomsPage() {
                 if (storedRole === 'admin') setRole('admin');
                 else setRole('user');
 
-                setCurrentUserId(storedUserId ? parseInt(storedUserId) : 1);
+                if (storedUserId) {
+                    const parsed = parseInt(storedUserId, 10);
+                    if (!isNaN(parsed)) {
+                        setCurrentUserId(parsed);
+                    } else {
+                        console.warn("Calendar: storedUserID ist keineZahl: ", storedUserId);
+                        setCurrentUserId(null);
+                    }
+                } else {
+                    console.warn("Calendar: Keine userId im LocalStorage gefunden.");
+                    setCurrentUserId(null);
+                }
             }
         }
     }, []);
@@ -289,12 +316,22 @@ export default function RoomsPage() {
     };
 
     const handleBookingSubmit = async () => {
+        console.log("handleBookingSubmit:currenUserId= ", currentUserId);
+
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = timeToMinutes(endTime);
         const duration = endMinutes - startMinutes;
 
         setTimeError('');
         setReasonError('');
+
+
+
+        if (!currentUserId) {
+            setReasonError('Fehler: keine Benutzer-ID gefunden. Bitte neu einloggen.');
+            console.error('Booking abgebrochen: currentUserId ist null/undefined.');
+            return;
+        }
 
         let hasError = false;
 
@@ -321,7 +358,7 @@ export default function RoomsPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: currentUserId || 1, // NEU: Aktuelle User-ID verwenden
+                user_id: currentUserId,
                 room_id: selectedRoomId,
                 slot_date: selectedDate,
                 start_time: startTime,
@@ -380,54 +417,54 @@ export default function RoomsPage() {
         }
     };
 
-const handleBlockSubmit = async () => {
-    if (!blockDate) {
-        alert('Bitte wählen Sie ein Datum aus.');
-        return;
-    }
-
-    // Validation
-    const startMinutes = timeToMinutes(blockAllDay ? '08:00' : blockStart);
-    const endMinutes = timeToMinutes(blockAllDay ? '20:00' : blockEnd);
-    
-    if (endMinutes <= startMinutes) {
-        alert('Endzeit muss nach der Startzeit liegen.');
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/calendar', {
-            method: 'PATCH', // Wichtig: PATCH statt POST
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                room_id: blockRoomId,
-                slot_date: blockDate,
-                start_time: blockAllDay ? '08:00' : blockStart,
-                end_time: blockAllDay ? '20:00' : blockEnd,
-                reason: blockAllDay ? 'Ganzer Tag gesperrt' : 'Zeitslot gesperrt'
-            })
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.message || 'Fehler beim Sperren.');
+    const handleBlockSubmit = async () => {
+        if (!blockDate) {
+            alert('Bitte wählen Sie ein Datum aus.');
             return;
         }
 
-        alert(`Slot erfolgreich gesperrt! ID: ${data.timeslot_id}`);
-        setShowBlockPopup(false);
+        // Validation
+        const startMinutes = timeToMinutes(blockAllDay ? '08:00' : blockStart);
+        const endMinutes = timeToMinutes(blockAllDay ? '20:00' : blockEnd);
 
-        // Timeslots neu laden
-        fetch(`/api/calendar?room_id=${selectedRoomId}`)
-            .then(res => res.json())
-            .then(data => setTimeslots(data))
-            .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+        if (endMinutes <= startMinutes) {
+            alert('Endzeit muss nach der Startzeit liegen.');
+            return;
+        }
 
-    } catch (err) {
-        console.error('Fehler beim Sperren:', err);
-        alert('Fehler beim Sperren des Slots.');
-    }
-};
+        try {
+            const res = await fetch('/api/calendar', {
+                method: 'PATCH', // Wichtig: PATCH statt POST
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_id: blockRoomId,
+                    slot_date: blockDate,
+                    start_time: blockAllDay ? '08:00' : blockStart,
+                    end_time: blockAllDay ? '20:00' : blockEnd,
+                    reason: blockAllDay ? 'Ganzer Tag gesperrt' : 'Zeitslot gesperrt'
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.message || 'Fehler beim Sperren.');
+                return;
+            }
+
+            alert(`Slot erfolgreich gesperrt! ID: ${data.timeslot_id}`);
+            setShowBlockPopup(false);
+
+            // Timeslots neu laden
+            fetch(`/api/calendar?room_id=${selectedRoomId}`)
+                .then(res => res.json())
+                .then(data => setTimeslots(data))
+                .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+
+        } catch (err) {
+            console.error('Fehler beim Sperren:', err);
+            alert('Fehler beim Sperren des Slots.');
+        }
+    };
 
     // Funktion zum Laden der Admin-Anfragen
     const loadAdminRequests = async () => {
@@ -504,6 +541,38 @@ const handleBlockSubmit = async () => {
         [timeslots, selectedRoomId]
     );
 
+    const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot | undefined => {
+        const dateStr = toISODate(weekDates[dateIndex]); // "YYYY-MM-DD"
+
+        return timeslotsForRoom.find((t) => {
+            const slotDateStr = normalizeSlotDate(t.slot_date);
+            if (slotDateStr !== dateStr) return false;
+
+            const startHour = getHourFromTime(t.start_time);
+            const endHour = getHourFromTime(t.end_time);
+
+            return hour >= startHour && hour < endHour;
+        });
+    };
+
+
+    function getSlotForCell(
+        timeslots: Timeslot[],
+        weekDates: Date[],
+        dateIndex: number,
+        hour: number
+    ): Timeslot | undefined {
+        const dateStr = toISODate(weekDates[dateIndex]);
+
+        return timeslots.find((t) => {
+            if (t.slot_date !== dateStr) return false;
+            const startHour = getHourFromTime(t.start_time);
+            const endHour = getHourFromTime(t.end_time);
+            return hour >= startHour && hour < endHour;
+        });
+    }
+
+
     const isCurrentWeek = useMemo(() => {
         const todayMonday = getMonday(new Date());
         return currentWeekStart.toDateString() === todayMonday.toDateString();
@@ -526,15 +595,16 @@ const handleBlockSubmit = async () => {
 
     const isReserved = (dateIndex: number, hour: number) => {
         const dateStr = toISODate(weekDates[dateIndex]);
+
         return timeslotsForRoom.some((t) => {
-            if (t.slot_date !== dateStr) return false;
+            const slotDateStr = normalizeSlotDate(t.slot_date);
+            if (slotDateStr !== dateStr) return false;
+
             const startHour = getHourFromTime(t.start_time);
             const endHour = getHourFromTime(t.end_time);
 
-            // Zeitslot prüfen
             if (hour >= startHour && hour < endHour) {
-                // Nur als reserviert anzeigen, wenn booking_status = 1 (akzeptiert)
-                return t.booking_status === 1;
+                return t.booking_status === 1; // bestätigt
             }
             return false;
         });
@@ -542,12 +612,16 @@ const handleBlockSubmit = async () => {
 
     const isReservationStart = (dateIndex: number, hour: number) => {
         const dateStr = toISODate(weekDates[dateIndex]);
+
         return timeslotsForRoom.some((t) => {
-            if (t.slot_date !== dateStr) return false;
+            const slotDateStr = normalizeSlotDate(t.slot_date);
+            if (slotDateStr !== dateStr) return false;
+
             const startHour = getHourFromTime(t.start_time);
             return hour === startHour;
         });
     };
+
 
     const goToPreviousWeek = () => {
         setCurrentWeekStart((prev) => {
@@ -612,7 +686,7 @@ const handleBlockSubmit = async () => {
                             </select>
 
                             {/* Booking List Button - nur für User */}
-                            {role === 'user' && (
+                            {(role === 'user' || role === 'admin') && (
                                 <button
                                     onClick={handleOpenBookingList} // NEU: handleOpenBookingList verwenden
                                     className="rounded-xl border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors flex items-center gap-1.5"
@@ -715,29 +789,63 @@ const handleBlockSubmit = async () => {
                             {WEEKDAYS.map((day, dateIndex) => (
                                 <div key={day} className="flex flex-col overflow-hidden rounded-b-md border-2 border-[#0f692b]">
                                     {HOURS.map((hour, idx) => {
-                                        const reserved = isReserved(dateIndex, hour);
-                                        const start = isReservationStart(dateIndex, hour);
+                                        const slot = getTimeslotForCell(dateIndex, hour);
+                                        const reserved = !!slot && (slot.timeslot_status === 2 || slot.timeslot_status === 3);
+                                        const start = !!slot && isReservationStart(dateIndex, hour);
+
+                                        const classNames = [
+                                            "relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs",
+                                            idx === 0 ? "border-t-0" : "",
+                                        ];
+
+                                        if (reserved) {
+                                            if (slot?.timeslot_status === 3) {
+                                                // gesperrt durch Admin
+                                                classNames.push("bg-gray-300 text-gray-800");
+                                            } else if (slot?.booking_status === 0) {
+                                                // pending
+                                                classNames.push("bg-orange-200 text-orange-900");
+                                            } else if (slot?.booking_status === 1) {
+                                                // bestätigt
+                                                classNames.push("bg-green-200 text-green-900");
+                                            } else {
+                                                classNames.push("bg-gray-100");
+                                            }
+                                        } else {
+                                            classNames.push("bg-white");
+                                            if (role === "user" || role === "admin") {
+                                                classNames.push("cursor-pointer", "hover:bg-[#e6f5e9]");
+                                            }
+                                        }
+
                                         return (
                                             <div
                                                 key={hour}
                                                 onClick={() => handleCellClick(dateIndex, hour)}
-                                                className={[
-                                                    'relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs',
-                                                    idx === 0 ? 'border-t-0' : '',
-                                                    reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
-                                                ].filter(Boolean).join(' ')}
+                                                className={classNames.filter(Boolean).join(" ")}
                                             >
-                                                {start && (
-                                                    <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[11px] font-semibold text-[#a3158f]">
-                                                        Reserviert
-                                                    </span>
+                                                {start && slot && (
+                                                    <div className="absolute inset-x-1 top-1 flex flex-col items-center text-[10px] font-semibold">
+                                                        {/* Username anzeigen */}
+                                                        <span>{slot.username || "Belegt"}</span>
+                                                        {/* optional Text je nach Status */}
+                                                        {slot.timeslot_status === 3 && (
+                                                            <span className="text-[9px] font-normal">Gesperrt</span>
+                                                        )}
+                                                        {slot.timeslot_status === 2 && slot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                        )}
+                                                        {slot.timeslot_status === 2 && slot.booking_status === 1 && (
+                                                            <span className="text-[9px] font-normal">Bestätigt</span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             ))}
+
                         </div>
                     </div>
 
@@ -761,27 +869,56 @@ const handleBlockSubmit = async () => {
 
                                 <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
-                                        const reserved = isReserved(currentDayIndex, hour);
-                                        const start = isReservationStart(currentDayIndex, hour);
+                                        const slot = getTimeslotForCell(currentDayIndex, hour);
+                                        const reserved = !!slot && (slot.timeslot_status === 2 || slot.timeslot_status === 3);
+                                        const start = !!slot && isReservationStart(currentDayIndex, hour);
+
+                                        const classNames = [
+                                            "relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]",
+                                            idx === 0 ? "border-t-0" : "",
+                                        ];
+
+                                        if (reserved) {
+                                            if (slot?.timeslot_status === 3) {
+                                                classNames.push("bg-gray-300 text-gray-800");
+                                            } else if (slot?.booking_status === 0) {
+                                                classNames.push("bg-orange-200 text-orange-900");
+                                            } else if (slot?.booking_status === 1) {
+                                                classNames.push("bg-green-200 text-green-900");
+                                            } else {
+                                                classNames.push("bg-gray-100");
+                                            }
+                                        } else {
+                                            classNames.push("bg-white");
+                                            if (role === "user" || role === "admin") {
+                                                classNames.push("cursor-pointer", "hover:bg-[#e6f5e9]");
+                                            }
+                                        }
+
                                         return (
                                             <div
                                                 key={hour}
                                                 onClick={() => handleCellClick(currentDayIndex, hour)}
-                                                className={[
-                                                    'relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]',
-                                                    idx === 0 ? 'border-t-0' : '',
-                                                    reserved ? 'bg-[#f8d9f2]' : 'bg-white',
-                                                    !reserved && (role === 'user' || role === 'admin') ? 'cursor-pointer hover:bg-[#e6f5e9]' : '',
-                                                ].filter(Boolean).join(' ')}
+                                                className={classNames.filter(Boolean).join(" ")}
                                             >
-                                                {start && (
-                                                    <span className="text-[10px] font-semibold text-[#a3158f]">
-                                                        Reserviert
-                                                    </span>
+                                                {start && slot && (
+                                                    <div className="flex flex-col items-center text-[10px] font-semibold">
+                                                        <span>{slot.username || "Belegt"}</span>
+                                                        {slot.timeslot_status === 3 && (
+                                                            <span className="text-[9px] font-normal">Gesperrt</span>
+                                                        )}
+                                                        {slot.timeslot_status === 2 && slot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                        )}
+                                                        {slot.timeslot_status === 2 && slot.booking_status === 1 && (
+                                                            <span className="text-[9px] font-normal">Bestätigt</span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         );
                                     })}
+
                                 </div>
                             </div>
                         </div>
