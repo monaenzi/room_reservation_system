@@ -60,3 +60,5 @@ next-env.d.ts
 /.jest/
 .playwright/
 .cypress/
+
+/public/uploads/
