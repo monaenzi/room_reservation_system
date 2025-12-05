@@ -26,6 +26,7 @@ CREATE TABLE room (
     building VARCHAR(100),
     is_visible TINYINT(1) DEFAULT 1 NOT NULL,
     created_by INT,
+    image_url VARCHAR(255)
     FOREIGN KEY (created_by) REFERENCES users(user_id)
 );
 
