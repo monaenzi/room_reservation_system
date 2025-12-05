@@ -115,6 +115,8 @@ export default function AdminUsersPage() {
         `User erfolgreich angelegt. Default-Passwort für Erstanmeldung: Raum123!`
       );
 
+      await fetchUsers();
+
       // Felder leeren
       setEmail("");
       setUsername("");
@@ -158,6 +160,23 @@ export default function AdminUsersPage() {
 async function handleSaveEdit() {
   // Pruefe, ob ein Benutzer ausgewählt ist
   if (!selectedUser) return;
+
+  if (!editFirstName || editFirstName.trim() === "") {
+    setEditError("Vorname darf nicht leer sein.");
+    return;
+  }
+
+  if (!editLastName || editLastName.trim() === "") {
+    setEditError("Nachname darf nicht leer sein.");
+    return;
+  }
+
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+  if (!editEmail || !emailRegex.test(editEmail)) {
+    setEditError("Bitte geben Sie eine gültige E-Mail-Adresse ein.");
+    return;
+  }
   
   setEditLoading(true);
   setEditError(null);
@@ -169,7 +188,6 @@ async function handleSaveEdit() {
     const roleToSend = editRoleId === "1" ? "admin" : "user";
     const userIdToUpdate = selectedUser.id; 
 
-    // Verwenden Sie die dynamische ID im fetch-Aufruf
     const res = await fetch(`/api/admin/users/${userIdToUpdate}`, {
       method: "PUT",
       headers: {"Content-Type": "application/json"},
@@ -678,9 +696,12 @@ function cancelDelete(){
                 </label>
                 <input
                   type="email"
+                  required
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                  pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+                  title="Bitte eine E-Mail-Adresse in einem gültigem Format eingeben."
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800 invalid:border-red-500 invalid:text-red-600"
                 />
               </div>
 
@@ -749,7 +770,7 @@ function cancelDelete(){
       )}
       {showDeleteConfirm && userToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+          <div className="relative w-full max-w-sm scale-100 rounded-3xl bg-white p-8 shadow-2xl sm_p-6">
             <div className="mb-1">
               <h2 className="text-center text-3xl font-bold text-red-700">User löschen</h2>
               <button onClick={cancelDelete} className="text-neutral-400 hover:text-neutral-600">
