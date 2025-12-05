@@ -10,7 +10,8 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) Not NULL,
     last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
     account_deactivated TINYINT(1) DEFAULT 0 NOT NULL, -- 0 = aktiv, 1= deaktiviert
     first_login TINYINT(1) DEFAULT 0 NOT NULL, -- 0= muss Passwort ändern, 1= normal login
     FOREIGN KEY (role_id) REFERENCES role(role_id)
@@ -25,6 +26,7 @@ CREATE TABLE room (
     building VARCHAR(100),
     is_visible TINYINT(1) DEFAULT 1 NOT NULL,
     created_by INT,
+    image_url VARCHAR(255)
     FOREIGN KEY (created_by) REFERENCES users(user_id)
 );
 
