@@ -250,7 +250,7 @@ export default function RoomsPage() {
 
     // NEU: Funktion zum Laden der User-Buchungen
     const loadUserBookings = async () => {
-        if (role !== 'user' || !currentUserId) return;
+        if (role !== 'admin' && role !== 'user' || !currentUserId) return; //liste von Buchungen für admin wird jetzt gezeigt
 
         setIsLoadingUserBookings(true);
         try {
@@ -1128,7 +1128,7 @@ export default function RoomsPage() {
                 </div>
             )}
 
-            {openBookingList && role === 'user' && (
+            {openBookingList && (role === 'admin' || role === 'user') && ( //liste von Buchungen für admin wird jetzt gezeigt
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
                         {/* Header */}
