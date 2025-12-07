@@ -357,39 +357,49 @@ export default function RoomsOverviewPage() {
             </main>
 
             {isAdmin && (
-                <>
-                    {/* Sidebar Toggle Button */}
-                    {!isSidebarOpen && (
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="fixed right-0 top-1/4 sm:top-1/5 translate-x-1 z-50 w-14 h-16 sm:w-20 sm:h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
-                        >
-                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
-                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
-                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
-                        </button>
-                    )}
+               <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`fixed top-1/4 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
+            bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
+            flex flex-col items-center justify-center text-green-700 text-xl
+            shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
+            ${isSidebarOpen
+                ? 'right-[75vw] sm:right-80 translate-x-0'
+                : 'right-0 translate-x-1'
+            }
+        `}
+    >
+        {isSidebarOpen ? (
+       <div className="flex items-center justify-center w-full h-full">
+    <span className="text-3xl font-bold text-green-700">➜</span>
+</div>
 
-                    {/* Sidebar Overlay */}
-                    {isSidebarOpen && (
-                        <div
-                            className="fixed inset-0 bg-black/30 z-40"
-                            onClick={() => setIsSidebarOpen(false)}
-                        />
-                    )}
 
-                    {/* Sidebar */}
-                    <div
-                        className={`fixed top-0 right-0 h-full w-[75vw] sm:w-80 bg-white shadow-2xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-                            }`}
-                    >
-                        <div className="flex flex-col h-full p-4">
-                            <button
-                                onClick={() => setIsSidebarOpen(false)}
-                                className="self-end mb-4 text-[#0f692b] font-bold text-xl hover:text-green-800 transition-colors"
-                            >
-                                ✕
-                            </button>
+        ) : (
+            <>
+                <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
+            </>
+        )}
+    </button>
+            )}
+
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/30 z-40"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            <div
+                className={`fixed top-0 right-0 h-full w-[75vw] sm:w-80 bg-white shadow-xl transform transition-transform duration-300 z-50 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                    }`}
+            >
+                <div className="flex flex-col h-full p-4">
+
+
+
 
                             <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Raumverwaltung</h2>
 
@@ -712,7 +722,4 @@ export default function RoomsOverviewPage() {
 
                 </>
             )}
-        </>
-    );
-}
-
+        
