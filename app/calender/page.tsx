@@ -929,7 +929,7 @@ export default function RoomsPage() {
             {role === 'admin' && (
                 <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className={`fixed top-1/4 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
+                    className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
             bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
             flex flex-col items-center justify-center text-green-700 text-xl
             shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
