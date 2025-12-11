@@ -51,6 +51,18 @@ type UserBooking = {
     room_name: string;
 };
 
+type Room = {
+    room_id: number;
+    room_name: string;
+    room_description?: string;
+    room_capacity?: number;
+    floor_number?: number;
+    building?: string;
+    is_visible: number;
+    created_by?: number;
+    image_url?: string;
+};
+
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i);
 const WEEKDAYS: Weekday[] = [
     'Montag',
@@ -60,10 +72,10 @@ const WEEKDAYS: Weekday[] = [
     'Freitag',
 ];
 
-const ROOMS = [
-    { room_id: 1, room_name: 'Raum 1' },
-    { room_id: 2, room_name: 'Raum 2' }
-];
+//const ROOMS = [
+ //   { room_id: 1, room_name: 'Raum 1' },
+   // { room_id: 2, room_name: 'Raum 2' }
+//];
 
 // Generate time options from 8:00 to 20:00 in 30-minute steps
 const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
@@ -184,6 +196,47 @@ export default function RoomsPage() {
     // NEU: Aktuelle User-ID (in echtem Projekt aus Auth holen)
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
+    const [rooms, setRooms] = useState<Room[]>([]);
+    const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+
+// räume dynamisch aus DB laden
+useEffect(() => {
+    const fetchRooms = async () => { 
+        try {
+            setIsLoadingRooms(true);
+            
+            const response = await fetch('/api/rooms?visible=true'); //mache einen http request zu der api ?visible=ture > holt sichtbare räume
+            
+            if (!response.ok) { //prüfe ob der request erfolgreich war
+                throw new Error(`Fehler: ${response.status}`); // wenn nicht erfolgreich > werfe einen fehler
+            }
+            
+            const data = await response.json(); //konvertiert die antwort von json zu javascript objekt
+            
+            if (data.rooms && Array.isArray(data.rooms)) { //prüfe ob rooms exisitiert und ein array ist
+                setRooms(data.rooms); //speichert rooms in state
+                
+                
+                if (data.rooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
+                    setSelectedRoomId(data.rooms[0].room_id);
+                    setBlockRoomId(data.rooms[0].room_id);
+                }
+            } else {
+                console.error('Ungültiges Datenformat:', data);
+                setRooms([]);
+            }
+        } catch (err) {
+            console.error('Fehler beim Laden der Räume:', err);
+            setRooms([]);
+        } finally {
+            setIsLoadingRooms(false);
+        }
+    };
+
+    fetchRooms();
+}, []);
+
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -214,6 +267,7 @@ export default function RoomsPage() {
             }
         }
     }, []);
+
 
     useEffect(() => {
         if (!selectedRoomId) return;
@@ -678,11 +732,17 @@ export default function RoomsPage() {
                                 value={selectedRoomId}
                                 onChange={(e) => setSelectedRoomId(Number(e.target.value))}
                             >
-                                {ROOMS.map((room) => (
-                                    <option key={room.room_id} value={room.room_id}>
-                                        {room.room_name}
-                                    </option>
-                                ))}
+                                {isLoadingRooms ? (
+                                    <option value="">Lade Räume...</option>
+                                ) : rooms.length === 0 ? (
+                                    <option value="">Keine Räume verfügbar</option>
+                                ) : (
+                                    rooms
+                                    .filter(room => room.is_visible === 1)
+                                    .map((room) => (
+                                        <option key={room.room_id} value={room.room_id}>{room.room_name}</option>
+                                    ))
+                                )}
                             </select>
 
                             {/* Booking List Button - nur für User */}
@@ -1017,7 +1077,7 @@ export default function RoomsPage() {
                                     value={selectedRoomId}
                                     onChange={(e) => setSelectedRoomId(Number(e.target.value))}
                                 >
-                                    {ROOMS.map((room) => (
+                                    {rooms.map((room) => (
                                         <option key={room.room_id} value={room.room_id}>
                                             {room.room_name}
                                         </option>
@@ -1376,7 +1436,7 @@ export default function RoomsPage() {
                                     className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
                                                text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
                                 >
-                                    {ROOMS.map((room) => (
+                                    {rooms.map((room) => (
                                         <option key={room.room_id} value={room.room_id}>
                                             {room.room_name}
                                         </option>
