@@ -25,7 +25,7 @@ export default function RoomsOverviewPage() {
 
     const [userId, setUserId] = useState<string | null>(() => {
         if (typeof window !== 'undefined') {
-            return (localStorage.getItem('user_id'));
+            return (localStorage.getItem('userId'));
         }
         return null;
     });
