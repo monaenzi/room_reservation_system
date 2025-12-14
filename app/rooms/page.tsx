@@ -76,7 +76,9 @@ export default function RoomsOverviewPage() {
                     description: r.room_description || r.description,
                     capacity: r.room_capacity,
                 }));
-                setRooms(mappedRooms);
+
+                const sortedRooms = mappedRooms.sort((a: Room, b: Room) => a.room_id - b.room_id)
+                setRooms(sortedRooms);
             }
         } catch (err) {
             console.error("Failed to fetch rooms", err);
