@@ -109,6 +109,12 @@ export default function RoomsOverviewPage() {
             return;
         }
 
+        const capacityNum = parseInt(roomCapacity, 10);
+        if (roomCapacity && (isNaN(capacityNum) || capacityNum <= 0)) {
+            alert("Die Kapazität muss eine positive, ganze Zahl sein.");
+            return;
+        }
+
         const formData = new FormData();
         formData.append('room_name', roomName);
         formData.append('room_description', roomDescription);
@@ -492,7 +498,7 @@ export default function RoomsOverviewPage() {
                                                 value={roomCapacity}
                                                 onChange={(e) => setRoomCapacity(e.target.value)}
                                                 className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition'
-                                                placeholder='Anzahl' />
+                                                placeholder='Anzahl' min="1"/>
                                         </div>
                                         <div>
                                             <label className='block text-sm font-medium text-gray-700 mb-2'>Gebäude</label>
