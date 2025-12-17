@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 type Role = 'guest' | 'user' | 'admin';
@@ -292,29 +292,40 @@ export default function RoomsPage() {
     }, []);
 
 
-    useEffect(() => {
+
+    const fetchTimeslots = useCallback(async (isBackgroundRefresh = false) => {
         if (!selectedRoomId) return;
 
-        const fetchTimeslots = async () => {
-            try {
-                const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+        try {
+            const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
 
-                if (!res.ok) {
-                    throw new Error(`HTTP-Fehler! Status: ${res.status}`);
-                }
+            if (!res.ok) {
+                console.error(`HTTP-Fehler! Status: ${res.status}`);
+                return;
+            }
 
-                const text = await res.text();
-                const data = text ? JSON.parse(text) : [];
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : [];
 
-                setTimeslots(data);
-            } catch (err) {
-                console.error('Fehler beim Laden der Timeslots:', err);
+            setTimeslots(data);
+        } catch (err) {
+            console.error('Fehler beim Laden der Timeslots: ', err);
+
+            if  (!isBackgroundRefresh) {
                 setTimeslots([]);
             }
-        };
-
-        fetchTimeslots();
+        }
     }, [selectedRoomId]);
+
+    useEffect(() => {
+        fetchTimeslots();
+
+        const intervalId = setInterval(() => {
+            fetchTimeslots(true);
+        }, 10000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchTimeslots]);
 
     useEffect(() => {
         const today = new Date();
@@ -428,6 +439,28 @@ export default function RoomsPage() {
         }
 
         if (hasError) {
+            return;
+        }
+
+        const startH = getHourFromTime(startTime);
+        const endH = getHourFromTime(endTime);
+
+        const isInterfering = timeslots.some(t => {
+            if (t.room_id !== selectedRoomId) return false;
+            if (normalizeSlotDate(t.slot_date) !== selectedDate) return false;
+
+            if (t.booking_status === 1 || t.timeslot_status === 3) {
+                const tStart = getHourFromTime(t.start_time);
+                const tEnd = getHourFromTime(t.end_time);
+                return (startH < tEnd && endH > tStart);
+            }
+            return false;
+        });;
+
+        if (isInterfering) {
+            alert("Dieser Termin wurde soeben von jemand anderem gebucht. Der Kalender wird aktualisiert.");
+            setOpenBooking(false);
+            fetchTimeslots();
             return;
         }
 
