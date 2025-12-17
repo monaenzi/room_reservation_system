@@ -27,17 +27,8 @@ export async function POST(req: NextRequest) {
     conn = await pool.getConnection();
 
     const rows = await conn.query(
-      `SELECT 
-         user_id,
-         email,
-         username,
-         password_hash,
-         first_login,
-         account_deactivated,
-         role_id
-       FROM users 
-       WHERE email = ? 
-       LIMIT 1`,
+      `SELECT user_id, username, password_hash, first_login, account_deactivated, role_id
+       FROM users WHERE email = ? LIMIT 1`,
       [email]
     );
 
@@ -47,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const user = rows[0];
 
-    const passwordOk = await bcrypt.compare(password, user.password_hash as string);
+    const passwordOk = await bcrypt.compare(password, user.password_hash);
     if (!passwordOk) {
       return NextResponse.json({ message: "Ungültige Zugangsdaten." }, { status: 401 });
     }
@@ -70,16 +61,20 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
 
-    res.cookies.set("auth", "1", { httpOnly: true, sameSite: "lax", path: "/" });
+    res.cookies.set("auth", "1", { httpOnly: true, path: "/", sameSite: "lax" });
     res.cookies.set("must_change_password", mustChangePassword ? "1" : "0", {
       httpOnly: true,
-      sameSite: "lax",
       path: "/",
+      sameSite: "lax",
+    });
+    res.cookies.set("role", role, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
     });
 
     return res;
-  } catch (err) {
-    console.error("Unerwarteter Fehler im Login-Endpoint:", err);
+  } catch {
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
   } finally {
     if (conn) conn.release();
