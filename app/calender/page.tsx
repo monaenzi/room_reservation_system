@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 type Role = 'guest' | 'user' | 'admin';
 type Weekday = 'Montag' | 'Dienstag' | 'Mittwoch' | 'Donnerstag' | 'Freitag';
@@ -143,8 +144,16 @@ function getBookingStatusColor(status: number): string {
 }
 
 export default function RoomsPage() {
+    const searchParams = useSearchParams();
+    const initialRoomId = searchParams.get('room_id')
     const [role, setRole] = useState<Role>('guest');
-    const [selectedRoomId, setSelectedRoomId] = useState(1);
+    const [selectedRoomId, setSelectedRoomId] = useState(() => {
+        if (initialRoomId) {
+            const parsed = parseInt(initialRoomId, 10);
+            return !isNaN(parsed) ? parsed : 1;
+        }
+    });
+    
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
