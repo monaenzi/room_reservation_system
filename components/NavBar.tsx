@@ -58,27 +58,27 @@ export default function NavBar() {
     }
   }, [pathname]);
 
-  function handleLogout() {
+  async function handleLogout() {
 
-     if (inactivityTimerRef.current) {
+    if (inactivityTimerRef.current) {
       clearInterval(inactivityTimerRef.current);
     }
+
+    await fetch("/api/logout", { method: "POST" });
 
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userRole");
     localStorage.removeItem("forcePasswordChange");
-
-
     localStorage.removeItem("lastActivityTime");
     localStorage.removeItem("userId");
     localStorage.removeItem("username");
-    setShowLogoutWarning(false);
 
+    setShowLogoutWarning(false);
     setRole("guest");
 
-
-    router.push("/");
+    router.push("/login");
   }
+
 
 
   const checkInactivity = () => {
@@ -93,18 +93,18 @@ export default function NavBar() {
       return;
     }
 
-   const timeSinceLastActivity = Date.now() - parseInt(lastActivity, 10);
-   const warningTime = INACTIVITY_TIMEOUT - WARNING_BEFORE_LOGOUT;
+    const timeSinceLastActivity = Date.now() - parseInt(lastActivity, 10);
+    const warningTime = INACTIVITY_TIMEOUT - WARNING_BEFORE_LOGOUT;
 
     if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
       handleLogout();
-  } else if (timeSinceLastActivity >= warningTime && !showLogoutWarning) {
-    setShowLogoutWarning(true);
-  }
+    } else if (timeSinceLastActivity >= warningTime && !showLogoutWarning) {
+      setShowLogoutWarning(true);
+    }
   };
 
 
-useEffect(() => {
+  useEffect(() => {
     const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn) return;
 
@@ -112,7 +112,7 @@ useEffect(() => {
 
     const handleUserActivity = () => {
       updateActivity();
-      setShowLogoutWarning(false); 
+      setShowLogoutWarning(false);
     };
 
     events.forEach((event) => {
@@ -135,125 +135,125 @@ useEffect(() => {
   const commonLinks = [
     { href: "/", label: "Startseite" },
     { href: "/rooms", label: "Räume" },
-    { href: "/calender", label: "Kalender" }, 
+    { href: "/calender", label: "Kalender" },
   ];
 
-  const adminLinks = 
+  const adminLinks =
     role === "admin"
       ? [
         { href: "/admin/users", label: "Userverwaltung" },
-       ]
+      ]
       : [];
   const navLinks = [...commonLinks, ...adminLinks];
 
   return (
     <>
-    <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2 sm:px-6 sm:py-3 text-gray-800">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="KAIT Logo" width={80} height={32} className="w-16 h-auto sm:w-20" />
-        </Link>
-
-        <ul className="hidden md:flex gap-10 lg:gap-20 text-gray-700 text-base lg:text-lg">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className={
-                  pathname === link.href
-                    ? "text-green-700 font-semibold border-b-2 border-green-700 pb-1"
-                    : "hover:text-green-700 transition-colors"
-                }
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        {role === "guest" ? (
-          <Link
-            href="/login"
-            aria-label="Login"
-            className="hidden md:flex items-center"
-          >
-            <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
+      <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2 sm:px-6 sm:py-3 text-gray-800">
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.svg" alt="KAIT Logo" width={80} height={32} className="w-16 h-auto sm:w-20" />
           </Link>
-        ) : (
-          <div className="hidden md:flex flex-col items-center justify-center gap-0.5">
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Logout"
-            >
-              <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
-            </button>
-            {username && (
-              <span className="text-xs font-semibold text-green-800 leading-tight">
-                Hallo, {username}!
-              </span>
-            )}
 
-
-          </div>
-        )}
-
-        <button type="button" className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-700" aria-label="Navigation umschalten" aria-expanded={isOpen} onClick={() => setIsOpen((prev) => !prev)}>
-          {!isOpen ? (
-            <Image src="/icons/menu.svg" alt="Menü öffnen" width={26} height={26} />
-          ) : (
-            <Image src="/icons/x.svg" alt="Menü schließen" width={26} height={26} />
-          )}
-        </button>
-      </div>
-
-      {isOpen && (
-        <div className="md:hidden bg-white/95 backdrop-blur border-t border-gray-200">
-          <div className="mmax-w-7xl mx-auto px-4 py-3 flex flex-col items-center">
-            {role !== "guest" && username && (
-              <div className="mb-2 text-green-800 font-semi-bold border-b border-gray-200 pb-2 w-full text-center">
-                Hallo, {username}!
-              </div>
-            )}
-            <ul className="flex flex-col gap-3 text-gray-800 text-base items-center text-center">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className={pathname === link.href ? "block py-1 text-green-700 font-semibold" : "block py-1 hover:text-green-700"} onClick={() => setIsOpen(false)}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-3">
-              {role === "guest" ? (
-                <Link href="/login" className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700" onClick={() => setIsOpen(false)}>
-                  <Image src="/icons/login.svg" alt="Login" width={22} height={22} />
-                  <span>Login</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleLogout();
-                    setIsOpen(false);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700"
+          <ul className="hidden md:flex gap-10 lg:gap-20 text-gray-700 text-base lg:text-lg">
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className={
+                    pathname === link.href
+                      ? "text-green-700 font-semibold border-b-2 border-green-700 pb-1"
+                      : "hover:text-green-700 transition-colors"
+                  }
                 >
-                  <Image
-                    src="/icons/logout.svg"
-                    alt="Logout"
-                    width={22}
-                    height={22}
-                  />
-                  <span>Logout</span>
-                </button>
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {role === "guest" ? (
+            <Link
+              href="/login"
+              aria-label="Login"
+              className="hidden md:flex items-center"
+            >
+              <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
+            </Link>
+          ) : (
+            <div className="hidden md:flex flex-col items-center justify-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Logout"
+              >
+                <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
+              </button>
+              {username && (
+                <span className="text-xs font-semibold text-green-800 leading-tight">
+                  Hallo, {username}!
+                </span>
               )}
+
+
+            </div>
+          )}
+
+          <button type="button" className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-green-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-700" aria-label="Navigation umschalten" aria-expanded={isOpen} onClick={() => setIsOpen((prev) => !prev)}>
+            {!isOpen ? (
+              <Image src="/icons/menu.svg" alt="Menü öffnen" width={26} height={26} />
+            ) : (
+              <Image src="/icons/x.svg" alt="Menü schließen" width={26} height={26} />
+            )}
+          </button>
+        </div>
+
+        {isOpen && (
+          <div className="md:hidden bg-white/95 backdrop-blur border-t border-gray-200">
+            <div className="mmax-w-7xl mx-auto px-4 py-3 flex flex-col items-center">
+              {role !== "guest" && username && (
+                <div className="mb-2 text-green-800 font-semi-bold border-b border-gray-200 pb-2 w-full text-center">
+                  Hallo, {username}!
+                </div>
+              )}
+              <ul className="flex flex-col gap-3 text-gray-800 text-base items-center text-center">
+                {navLinks.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={pathname === link.href ? "block py-1 text-green-700 font-semibold" : "block py-1 hover:text-green-700"} onClick={() => setIsOpen(false)}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-3">
+                {role === "guest" ? (
+                  <Link href="/login" className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700" onClick={() => setIsOpen(false)}>
+                    <Image src="/icons/login.svg" alt="Login" width={22} height={22} />
+                    <span>Login</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleLogout();
+                      setIsOpen(false);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-700"
+                  >
+                    <Image
+                      src="/icons/logout.svg"
+                      alt="Logout"
+                      width={22}
+                      height={22}
+                    />
+                    <span>Logout</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </nav>
+        )}
+      </nav>
 
 
       {showLogoutWarning && (

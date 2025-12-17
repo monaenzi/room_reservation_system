@@ -24,15 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    try {
-      conn = await pool.getConnection();
-    } catch (err) {
-      console.error("DB-Verbindung fehlgeschlagen:", err);
-      return NextResponse.json(
-        { message: "Verbindung zur Datenbank nicht möglich." },
-        { status: 500 }
-      );
-    }
+    conn = await pool.getConnection();
 
     const rows = await conn.query(
       `SELECT 
@@ -50,53 +42,45 @@ export async function POST(req: NextRequest) {
     );
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json(
-        { message: "Ungültige Zugangsdaten." },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Ungültige Zugangsdaten." }, { status: 401 });
     }
 
     const user = rows[0];
 
-    const passwordOk = await bcrypt.compare(
-      password,
-      user.password_hash as string
-    );
-
+    const passwordOk = await bcrypt.compare(password, user.password_hash as string);
     if (!passwordOk) {
-      return NextResponse.json(
-        { message: "Ungültige Zugangsdaten." },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Ungültige Zugangsdaten." }, { status: 401 });
     }
 
     if (user.account_deactivated) {
-      return NextResponse.json(
-        { message: "Dieser Account ist deaktiviert." },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: "Dieser Account ist deaktiviert." }, { status: 403 });
     }
 
     const mustChangePassword = user.first_login === 0;
     const role = user.role_id === 1 ? "admin" : "user";
 
-    // ⬇⬇ Nur Daten zurückgeben – kein localStorage hier!
-    return NextResponse.json(
-      { 
+    const res = NextResponse.json(
+      {
         message: "Login erfolgreich.",
         mustChangePassword,
         role,
         username: user.username,
-        user_id: user.user_id  // <--- WICHTIG
+        user_id: user.user_id,
       },
       { status: 200 }
     );
+
+    res.cookies.set("auth", "1", { httpOnly: true, sameSite: "lax", path: "/" });
+    res.cookies.set("must_change_password", mustChangePassword ? "1" : "0", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return res;
   } catch (err) {
     console.error("Unerwarteter Fehler im Login-Endpoint:", err);
-    return NextResponse.json(
-      { message: "Interner Serverfehler." },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
   } finally {
     if (conn) conn.release();
   }

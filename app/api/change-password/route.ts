@@ -24,15 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    try {
-      conn = await pool.getConnection();
-    } catch (err) {
-      console.error("DB-Verbindung fehlgeschlagen:", err);
-      return NextResponse.json(
-        { message: "Verbindung zur Datenbank nicht möglich." },
-        { status: 500 }
-      );
-    }
+    conn = await pool.getConnection();
 
     const rows = await conn.query(
       "SELECT user_id, password_hash, first_login, account_deactivated FROM users WHERE email = ? LIMIT 1",
@@ -40,31 +32,18 @@ export async function POST(req: NextRequest) {
     );
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json(
-        { message: "Ungültige Zugangsdaten." },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Ungültige Zugangsdaten." }, { status: 401 });
     }
 
     const user = rows[0];
 
     if (user.account_deactivated) {
-      return NextResponse.json(
-        { message: "Dieser Account ist deaktiviert." },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: "Dieser Account ist deaktiviert." }, { status: 403 });
     }
 
-    const passwordOk = await bcrypt.compare(
-      oldPassword,
-      user.password_hash as string
-    );
-
+    const passwordOk = await bcrypt.compare(oldPassword, user.password_hash as string);
     if (!passwordOk) {
-      return NextResponse.json(
-        { message: "Ungültige Zugangsdaten." },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Ungültige Zugangsdaten." }, { status: 401 });
     }
 
     const same = await bcrypt.compare(newPassword, user.password_hash as string);
@@ -82,16 +61,14 @@ export async function POST(req: NextRequest) {
       [newHash, user.user_id]
     );
 
-    return NextResponse.json(
-      { message: "Passwort erfolgreich geändert." },
-      { status: 200 }
-    );
+    const res = NextResponse.json({ message: "Passwort erfolgreich geändert." }, { status: 200 });
+
+    res.cookies.set("must_change_password", "0", { httpOnly: true, sameSite: "lax", path: "/" });
+
+    return res;
   } catch (err) {
     console.error("Fehler im change-password-Endpoint:", err);
-    return NextResponse.json(
-      { message: "Interner Serverfehler." },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
   } finally {
     if (conn) conn.release();
   }
