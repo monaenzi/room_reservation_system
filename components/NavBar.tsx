@@ -280,9 +280,6 @@ useEffect(() => {
             <p className="text-gray-600 mb-4">
               Sie werden in 2 Minuten aufgrund von Inaktivität automatisch ausgeloggt.
             </p>
-            <p className="text-sm text-gray-500">
-              Sie werden in wenigen Sekunden zur Login-Seite weitergeleitet...
-            </p>
           </div>
         </div>
       )}
