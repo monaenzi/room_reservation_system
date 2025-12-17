@@ -175,7 +175,7 @@ export default function NavBar() {
             <Link
               href="/login"
               aria-label="Login"
-              className="hidden md:flex items-center"
+              className="hidden md:flex items-center hover:opacity-80 transition-opacity"
             >
               <Image src="/icons/login.svg" alt="Login" width={35} height={35} />
             </Link>
@@ -185,6 +185,7 @@ export default function NavBar() {
                 type="button"
                 onClick={handleLogout}
                 aria-label="Logout"
+                className="cursor-pointer hover:opacity-80 transition-opacity"
               >
                 <Image src="/icons/logout.svg" alt="Logout" width={35} height={35} />
               </button>
