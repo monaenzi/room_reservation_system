@@ -118,11 +118,29 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log("DEBUG POST /api/calendar body:", body);
 
-    const { user_id, room_id, slot_date, start_time, end_time, reason } = body;
+    const { 
+      user_id, 
+      room_id, 
+      slot_date, 
+      start_time, 
+      end_time, 
+      reason,
+      is_recurring = false,
+      until_date = null
+    } = body;
 
+    // Grundlegende Validierung
     if (!user_id || !room_id || !slot_date || !start_time || !end_time || !reason) {
       return NextResponse.json(
         { message: "Alle Felder sind erforderlich." },
+        { status: 400 }
+      );
+    }
+
+    // Validierung für wiederkehrende Buchungen
+    if (is_recurring && !until_date) {
+      return NextResponse.json(
+        { message: "Bei wiederkehrenden Buchungen muss ein Enddatum angegeben werden." },
         { status: 400 }
       );
     }
@@ -142,6 +160,7 @@ export async function POST(req: NextRequest) {
         ? slot_date.split("T")[0]
         : slot_date;
 
+    // Zeitvalidierung
     const canBook = await conn.query(
       `
       SELECT 
@@ -157,6 +176,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verfallene Buchungen aktualisieren
     await conn.query(
       `
       UPDATE booking b
@@ -167,6 +187,81 @@ export async function POST(req: NextRequest) {
     `
     );
 
+    // Wiederkehrende Buchungslogik
+    if (is_recurring) {
+      // Alle Termine für wiederkehrende Buchung generieren
+      const generatedDates = generateRecurringDates(
+        normalizedDate,
+        until_date
+      );
+
+      const bookings = [];
+      let successfulBookings = 0;
+
+      for (const date of generatedDates) {
+        // Prüfen ob Slot bereits belegt ist
+        const existing = await conn.query(
+          `SELECT * FROM timeslot 
+           WHERE room_id = ? 
+             AND slot_date = ? 
+             AND start_time < ? 
+             AND end_time > ? 
+             AND timeslot_status IN (2, 3)`,
+          [room_id, date, end_time, start_time]
+        );
+
+        if (existing.length > 0) {
+          // Wenn ein Termin belegt ist, überspringen wir nur diesen
+          continue;
+        }
+
+        try {
+          // Timeslot erstellen
+          const timeslotResult: any = await conn.query(
+            "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
+            [room_id, date, start_time, end_time]
+          );
+
+          const timeslot_id = Number(timeslotResult.insertId);
+          
+          // Booking erstellen
+          const bookingResult: any = await conn.query(
+            "INSERT INTO booking (user_id, timeslot_id, reason, booking_status, is_recurring) VALUES (?, ?, ?, ?, ?)",
+            [user_id, timeslot_id, reason, bookingStatus, 1]
+          );
+
+          successfulBookings++;
+          bookings.push({
+            date,
+            timeslot_id: Number(timeslotResult.insertId),
+            booking_id: Number(bookingResult.insertId)
+          });
+        } catch (error) {
+          console.error(`Fehler beim Erstellen der Buchung für ${date}:`, error);
+          // Weiter mit nächstem Datum
+        }
+      }
+
+      // Convert BigInt to Number for JSON serialization
+      const safeBookings = bookings.map(booking => ({
+        ...booking,
+        timeslot_id: Number(booking.timeslot_id),
+        booking_id: Number(booking.booking_id)
+      }));
+
+      return NextResponse.json(
+        {
+          message: `${successfulBookings} wiederkehrende Buchung(en) erfolgreich erstellt.`,
+          bookings_count: successfulBookings,
+          is_recurring: true,
+          booking_status: bookingStatus,
+          bookings: safeBookings
+        },
+        { status: 201 }
+      );
+    }
+
+    // Normale Buchung (nicht wiederkehrend)
     const existing = await conn.query(
       `SELECT * FROM timeslot 
        WHERE room_id = ? 
@@ -193,8 +288,8 @@ export async function POST(req: NextRequest) {
     if (!timeslot_id) throw new Error("timeslot_id konnte nicht ermittelt werden.");
 
     const bookingResult: any = await conn.query(
-      "INSERT INTO booking (user_id, timeslot_id, reason, booking_status) VALUES (?, ?, ?, ?)",
-      [user_id, timeslot_id, reason, bookingStatus]
+      "INSERT INTO booking (user_id, timeslot_id, reason, booking_status, is_recurring) VALUES (?, ?, ?, ?, ?)",
+      [user_id, timeslot_id, reason, bookingStatus, 0]
     );
 
     const booking_id = Number(bookingResult.insertId);
@@ -205,9 +300,10 @@ export async function POST(req: NextRequest) {
         message: isAdmin
           ? "Timeslot erfolgreich erstellt und sofort bestätigt (Admin)."
           : "Timeslot erfolgreich erstellt und zur Bestätigung vorgelegt.",
-        timeslot_id,
-        booking_id,
+        timeslot_id: Number(timeslot_id),
+        booking_id: Number(booking_id),
         booking_status: bookingStatus,
+        is_recurring: false,
       },
       { status: 201 }
     );
@@ -217,6 +313,27 @@ export async function POST(req: NextRequest) {
   } finally {
     if (conn) conn.release();
   }
+}
+
+// Hilfsfunktion zur Generierung wiederkehrender Daten (täglich)
+function generateRecurringDates(startDate: string, untilDate: string): string[] {
+  const dates: string[] = [];
+  const start = new Date(startDate);
+  const until = new Date(untilDate);
+  
+  // Maximal 2 Jahre in die Zukunft
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() + 2);
+  const effectiveUntil = until < maxDate ? until : maxDate;
+
+  let currentDate = new Date(start);
+
+  while (currentDate <= effectiveUntil) {
+    dates.push(currentDate.toISOString().split('T')[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return dates;
 }
 
 export async function PUT(req: NextRequest) {

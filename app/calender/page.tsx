@@ -210,6 +210,12 @@ export default function RoomsPage() {
     const [timeError, setTimeError] = useState('');
     const [reasonError, setReasonError] = useState('');
 
+    // Wiederkehrende Buchungen stats
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [twoYears, setTwoYears] = useState(false);
+    const [showUntilDate, setShowUntilDate] = useState(false);
+    const [untilDate, setUntilDate] = useState('');
+
     // Booking list popup state
     const [openBookingList, setOpenBookingList] = useState(false);
 
@@ -381,7 +387,7 @@ export default function RoomsPage() {
             setEndTime(newStartTime);
         }
     };
-
+    
     //   const handleReset = () => {
     //       setSelectedRoomId(1);
     //       setSelectedDate('');
@@ -401,8 +407,6 @@ export default function RoomsPage() {
 
         setTimeError('');
         setReasonError('');
-
-
 
         if (!currentUserId) {
             setReasonError('Fehler: keine Benutzer-ID gefunden. Bitte neu einloggen.');
@@ -427,8 +431,29 @@ export default function RoomsPage() {
             hasError = true;
         }
 
+        // Validierung für wiederkehrende Buchungen
+        if (isRecurring) {
+            if (!twoYears && !untilDate) {
+                setReasonError('Bitte wählen Sie "2 Jahre" oder geben Sie ein Enddatum ein.');
+                hasError = true;
+            }
+        }
+
         if (hasError) {
             return;
+        }
+
+        // Berechne Enddatum basierend auf Auswahl
+        let finalUntilDate = '';
+        if (isRecurring) {
+            if (twoYears) {
+                const start = new Date(selectedDate || '');
+                const twoYearsLater = new Date(start);
+                twoYearsLater.setFullYear(start.getFullYear() + 2);
+                finalUntilDate = twoYearsLater.toISOString().split('T')[0];
+            } else {
+                finalUntilDate = untilDate;
+            }
         }
 
         const res = await fetch('/api/calendar', {
@@ -440,7 +465,9 @@ export default function RoomsPage() {
                 slot_date: selectedDate,
                 start_time: startTime,
                 end_time: endTime,
-                reason
+                reason,
+                is_recurring: isRecurring,
+                until_date: isRecurring ? finalUntilDate : null
             })
         });
 
@@ -450,8 +477,19 @@ export default function RoomsPage() {
             return;
         }
 
-        alert(`Buchung erfolgreich! ID: ${data.booking_id}`);
+        if (isRecurring) {
+            alert(`${data.bookings_count} wiederkehrende Buchung(en) erfolgreich erstellt!`);
+        } else {
+            alert(`Buchung erfolgreich! ID: ${data.booking_id}`);
+        }
+        
         setOpenBooking(false);
+
+        // Reset recurring options
+        setIsRecurring(false);
+        setTwoYears(false);
+        setShowUntilDate(false);
+        setUntilDate('');
 
         // Timeslots neu laden
         fetch(`/api/calendar?room_id=${selectedRoomId}`)
@@ -1166,6 +1204,89 @@ export default function RoomsPage() {
                                     {timeError}
                                 </div>
                             )}
+
+                            {/* Wiederkehrende Buchung Checkbox */}
+                            <div className="space-y-3 pt-2 border-t border-gray-200">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="recurring-booking"
+                                        checked={isRecurring}
+                                        onChange={(e) => {
+                                            setIsRecurring(e.target.checked);
+                                            if (!e.target.checked) {
+                                                setTwoYears(false);
+                                                setShowUntilDate(false);
+                                                setUntilDate('');
+                                            }
+                                        }}
+                                        className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                    />
+                                    <label htmlFor="recurring-booking" className="text-sm font-medium text-gray-700">
+                                        Wiederkehrend buchen
+                                    </label>
+                                </div>
+
+                                {/* Wiederkehrende Optionen - nur wenn Checkbox aktiviert */}
+                                {isRecurring && (
+                                    <div className="pl-7 space-y-3">
+                                        {/* 2 Jahre Checkbox */}
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                id="two-years"
+                                                checked={twoYears}
+                                                onChange={(e) => {
+                                                    setTwoYears(e.target.checked);
+                                                    if (e.target.checked) {
+                                                        setShowUntilDate(false);
+                                                        setUntilDate('');
+                                                    }
+                                                }}
+                                                className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                            />
+                                            <label htmlFor="two-years" className="text-sm font-medium text-gray-700">
+                                                2 Jahre
+                                            </label>
+                                        </div>
+
+                                        {/* Bis Checkbox */}
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                id="show-until-date"
+                                                checked={showUntilDate}
+                                                onChange={(e) => {
+                                                    setShowUntilDate(e.target.checked);
+                                                    if (e.target.checked) {
+                                                        setTwoYears(false);
+                                                    }
+                                                }}
+                                                className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                            />
+                                            <label htmlFor="show-until-date" className="text-sm font-medium text-gray-700">
+                                                Bis
+                                            </label>
+                                        </div>
+
+                                        {/* Bis Datum Auswahl - nur wenn Bis Checkbox aktiviert */}
+                                        {showUntilDate && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                    Enddatum
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={untilDate}
+                                                    onChange={(e) => setUntilDate(e.target.value)}
+                                                    min={selectedDate || ''}
+                                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Grund textarea */}
                             <div>
