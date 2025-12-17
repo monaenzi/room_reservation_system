@@ -74,8 +74,8 @@ const WEEKDAYS: Weekday[] = [
 ];
 
 //const ROOMS = [
- //   { room_id: 1, room_name: 'Raum 1' },
-   // { room_id: 2, room_name: 'Raum 2' }
+//   { room_id: 1, room_name: 'Raum 1' },
+// { room_id: 2, room_name: 'Raum 2' }
 //];
 
 // Generate time options from 8:00 to 20:00 in 30-minute steps
@@ -176,7 +176,7 @@ export default function RoomsPage() {
             return !isNaN(parsed) ? parsed : 1;
         }
     });
-    
+
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
@@ -219,42 +219,42 @@ export default function RoomsPage() {
     const [rooms, setRooms] = useState<Room[]>([]);
     const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
-// räume dynamisch aus DB laden
-useEffect(() => {
-    const fetchRooms = async () => { 
-        try {
-            setIsLoadingRooms(true);
-            
-            const response = await fetch('/api/rooms?visible=true'); //mache einen http request zu der api ?visible=ture > holt sichtbare räume
-            
-            if (!response.ok) { //prüfe ob der request erfolgreich war
-                throw new Error(`Fehler: ${response.status}`); // wenn nicht erfolgreich > werfe einen fehler
-            }
-            
-            const data = await response.json(); //konvertiert die antwort von json zu javascript objekt
-            
-            if (data.rooms && Array.isArray(data.rooms)) { //prüfe ob rooms exisitiert und ein array ist
-                setRooms(data.rooms); //speichert rooms in state
-                
-                
-                if (data.rooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
-                    setSelectedRoomId(data.rooms[0].room_id);
-                    setBlockRoomId(data.rooms[0].room_id);
-                }
-            } else {
-                console.error('Ungültiges Datenformat:', data);
-                setRooms([]);
-            }
-        } catch (err) {
-            console.error('Fehler beim Laden der Räume:', err);
-            setRooms([]);
-        } finally {
-            setIsLoadingRooms(false);
-        }
-    };
+    // räume dynamisch aus DB laden
+    useEffect(() => {
+        const fetchRooms = async () => {
+            try {
+                setIsLoadingRooms(true);
 
-    fetchRooms();
-}, []);
+                const response = await fetch('/api/rooms?visible=true'); //mache einen http request zu der api ?visible=ture > holt sichtbare räume
+
+                if (!response.ok) { //prüfe ob der request erfolgreich war
+                    throw new Error(`Fehler: ${response.status}`); // wenn nicht erfolgreich > werfe einen fehler
+                }
+
+                const data = await response.json(); //konvertiert die antwort von json zu javascript objekt
+
+                if (data.rooms && Array.isArray(data.rooms)) { //prüfe ob rooms exisitiert und ein array ist
+                    setRooms(data.rooms); //speichert rooms in state
+
+
+                    if (data.rooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
+                        setSelectedRoomId(data.rooms[0].room_id);
+                        setBlockRoomId(data.rooms[0].room_id);
+                    }
+                } else {
+                    console.error('Ungültiges Datenformat:', data);
+                    setRooms([]);
+                }
+            } catch (err) {
+                console.error('Fehler beim Laden der Räume:', err);
+                setRooms([]);
+            } finally {
+                setIsLoadingRooms(false);
+            }
+        };
+
+        fetchRooms();
+    }, []);
 
 
     useEffect(() => {
@@ -379,15 +379,15 @@ useEffect(() => {
         }
     };
 
- //   const handleReset = () => {
- //       setSelectedRoomId(1);
- //       setSelectedDate('');
- //       setStartTime('08:00');
- //       setEndTime('08:00');
- //       setReason('');
- //       setTimeError('');
- //       setReasonError('');
- //   };
+    //   const handleReset = () => {
+    //       setSelectedRoomId(1);
+    //       setSelectedDate('');
+    //       setStartTime('08:00');
+    //       setEndTime('08:00');
+    //       setReason('');
+    //       setTimeError('');
+    //       setReasonError('');
+    //   };
 
     const handleBookingSubmit = async () => {
         console.log("handleBookingSubmit:currenUserId= ", currentUserId);
@@ -758,10 +758,10 @@ useEffect(() => {
                                     <option value="">Keine Räume verfügbar</option>
                                 ) : (
                                     rooms
-                                    .filter(room => room.is_visible === 1)
-                                    .map((room) => (
-                                        <option key={room.room_id} value={room.room_id}>{room.room_name}</option>
-                                    ))
+                                        .filter(room => room.is_visible === 1)
+                                        .map((room) => (
+                                            <option key={room.room_id} value={room.room_id}>{room.room_name}</option>
+                                        ))
                                 )}
                             </select>
 
@@ -1365,7 +1365,7 @@ useEffect(() => {
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Datum</div>
                                                         <div className="text-sm text-gray-800">
-                                                            {new Date(request.slot_date).toLocaleDateString('de-DE', {
+                                                            {parseISODateAsLocalDate(request.slot_date).toLocaleDateString('de-DE', {
                                                                 weekday: 'long',
                                                                 day: '2-digit',
                                                                 month: '2-digit',
