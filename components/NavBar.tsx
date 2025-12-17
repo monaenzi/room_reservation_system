@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from "react";
 type Role = "guest" | "user" | "admin";
 
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
+const WARNING_BEFORE_LOGOUT = 2 * 60 * 1000;
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -93,13 +94,13 @@ export default function NavBar() {
     }
 
    const timeSinceLastActivity = Date.now() - parseInt(lastActivity, 10);
+   const warningTime = INACTIVITY_TIMEOUT - WARNING_BEFORE_LOGOUT;
 
     if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
-      setShowLogoutWarning(true);
-      setTimeout(() => {
-        handleLogout();
-      }, 3000); 
-    }
+      handleLogout();
+  } else if (timeSinceLastActivity >= warningTime && !showLogoutWarning) {
+    setShowLogoutWarning(true);
+  }
   };
 
 
@@ -146,6 +147,7 @@ useEffect(() => {
   const navLinks = [...commonLinks, ...adminLinks];
 
   return (
+    <>
     <nav className="w-full fixed top-0 left-0 z-50 bg-white/70 backdrop-blur-md shadow-[0_6px_10px_rgba(0,0,0,0.25)]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2 sm:px-6 sm:py-3 text-gray-800">
         <Link href="/" className="flex items-center gap-2">
@@ -252,5 +254,38 @@ useEffect(() => {
         </div>
       )}
     </nav>
+
+
+      {showLogoutWarning && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl px-8 py-6 max-w-md mx-4 text-center">
+            <div className="mb-4">
+              <svg
+                className="mx-auto h-16 w-16 text-red-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Automatischer Logout
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Sie werden in 2 Minuten aufgrund von Inaktivität automatisch ausgeloggt.
+            </p>
+            <p className="text-sm text-gray-500">
+              Sie werden in wenigen Sekunden zur Login-Seite weitergeleitet...
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
