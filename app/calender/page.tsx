@@ -1521,7 +1521,18 @@ useEffect(() => {
                         </div>
 
                         {/* Footer */}
-                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex justify-center">
+                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
+                            <button onClick={() => {
+                                setBlockDate('');
+                                setBlockAllDay(false);
+                                setBlockStart('08:00');
+                                setBlockEnd('20:00');
+                                if(rooms.length > 0){
+                                    setBlockRoomId(rooms[0].room_id);
+                                }
+                            }}
+                            className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-300 transition-colors'> Abbrechen
+                            </button>
                             <button
                                 onClick={handleBlockSubmit}
                                 className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
