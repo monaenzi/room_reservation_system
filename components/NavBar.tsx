@@ -3,16 +3,31 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Role = "guest" | "user" | "admin";
+
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
 export default function NavBar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [role, setRole] = useState<Role>("guest");
   const [username, setUsername] = useState<string>("");
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+
+
+  const updateActivity = () => {
+    if (typeof window !== "undefined") {
+      const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+      if (isLoggedIn) {
+        localStorage.setItem("lastActivityTime", Date.now().toString());
+      }
+    }
+  };
+
 
   /*     const navLinks = [
           { href: "/", label: "Startseite" },
@@ -34,19 +49,87 @@ export default function NavBar() {
     } else if (storedRole === "admin") {
       setRole("admin");
       setUsername(storedUsername);
+      updateActivity();
     } else {
       setRole("user");
       setUsername(storedUsername);
+      updateActivity();
     }
   }, [pathname]);
 
   function handleLogout() {
+
+     if (inactivityTimerRef.current) {
+      clearInterval(inactivityTimerRef.current);
+    }
+
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userRole");
     localStorage.removeItem("forcePasswordChange");
+
+
+    localStorage.removeItem("lastActivityTime");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("username");
+    setShowLogoutWarning(false);
+
     setRole("guest");
+
+
     router.push("/");
   }
+
+
+  const checkInactivity = () => {
+    if (typeof window === "undefined") return;
+
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) return;
+
+    const lastActivity = localStorage.getItem("lastActivityTime");
+    if (!lastActivity) {
+      updateActivity();
+      return;
+    }
+
+   const timeSinceLastActivity = Date.now() - parseInt(lastActivity, 10);
+
+    if (timeSinceLastActivity >= INACTIVITY_TIMEOUT) {
+      setShowLogoutWarning(true);
+      setTimeout(() => {
+        handleLogout();
+      }, 3000); 
+    }
+  };
+
+
+useEffect(() => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    if (!isLoggedIn) return;
+
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
+
+    const handleUserActivity = () => {
+      updateActivity();
+      setShowLogoutWarning(false); 
+    };
+
+    events.forEach((event) => {
+      document.addEventListener(event, handleUserActivity);
+    });
+
+    inactivityTimerRef.current = setInterval(checkInactivity, 30000);
+
+    return () => {
+      events.forEach((event) => {
+        document.removeEventListener(event, handleUserActivity);
+      });
+      if (inactivityTimerRef.current) {
+        clearInterval(inactivityTimerRef.current);
+      }
+    };
+  }, [role]);
+
 
   const commonLinks = [
     { href: "/", label: "Startseite" },
