@@ -305,15 +305,15 @@ export default function RoomsPage() {
         }
     };
 
-    const handleReset = () => {
-        setSelectedRoomId(1);
-        setSelectedDate('');
-        setStartTime('08:00');
-        setEndTime('08:00');
-        setReason('');
-        setTimeError('');
-        setReasonError('');
-    };
+ //   const handleReset = () => {
+ //       setSelectedRoomId(1);
+ //       setSelectedDate('');
+ //       setStartTime('08:00');
+ //       setEndTime('08:00');
+ //       setReason('');
+ //       setTimeError('');
+ //       setReasonError('');
+ //   };
 
     const handleBookingSubmit = async () => {
         console.log("handleBookingSubmit:currenUserId= ", currentUserId);
@@ -1112,10 +1112,10 @@ export default function RoomsPage() {
                         {/* Footer Buttons */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
-                                onClick={handleReset}
+                                onClick={() => setOpenBooking(false)}
                                 className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
-                                Zurücksetzen
+                                Abbrechen
                             </button>
                             <button
                                 onClick={handleBookingSubmit}
