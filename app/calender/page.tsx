@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 type Role = 'guest' | 'user' | 'admin';
 type Weekday = 'Montag' | 'Dienstag' | 'Mittwoch' | 'Donnerstag' | 'Freitag';
@@ -155,8 +156,16 @@ function getBookingStatusColor(status: number): string {
 }
 
 export default function RoomsPage() {
+    const searchParams = useSearchParams();
+    const initialRoomId = searchParams.get('room_id')
     const [role, setRole] = useState<Role>('guest');
-    const [selectedRoomId, setSelectedRoomId] = useState(1);
+    const [selectedRoomId, setSelectedRoomId] = useState(() => {
+        if (initialRoomId) {
+            const parsed = parseInt(initialRoomId, 10);
+            return !isNaN(parsed) ? parsed : 1;
+        }
+    });
+    
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
@@ -359,15 +368,15 @@ useEffect(() => {
         }
     };
 
-    const handleReset = () => {
-        setSelectedRoomId(1);
-        setSelectedDate('');
-        setStartTime('08:00');
-        setEndTime('08:00');
-        setReason('');
-        setTimeError('');
-        setReasonError('');
-    };
+ //   const handleReset = () => {
+ //       setSelectedRoomId(1);
+ //       setSelectedDate('');
+ //       setStartTime('08:00');
+ //       setEndTime('08:00');
+ //       setReason('');
+ //       setTimeError('');
+ //       setReasonError('');
+ //   };
 
     const handleBookingSubmit = async () => {
         console.log("handleBookingSubmit:currenUserId= ", currentUserId);
@@ -989,7 +998,7 @@ useEffect(() => {
             {role === 'admin' && (
                 <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className={`fixed top-1/4 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
+                    className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
             bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
             flex flex-col items-center justify-center text-green-700 text-xl
             shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
@@ -1172,10 +1181,10 @@ useEffect(() => {
                         {/* Footer Buttons */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
-                                onClick={handleReset}
+                                onClick={() => setOpenBooking(false)}
                                 className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
-                                Zurücksetzen
+                                Abbrechen
                             </button>
                             <button
                                 onClick={handleBookingSubmit}

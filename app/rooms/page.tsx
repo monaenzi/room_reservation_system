@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 type Role = 'guest' | 'user' | 'admin';
 
@@ -25,7 +26,7 @@ export default function RoomsOverviewPage() {
 
     const [userId, setUserId] = useState<string | null>(() => {
         if (typeof window !== 'undefined') {
-            return (localStorage.getItem('user_id'));
+            return (localStorage.getItem('userId'));
         }
         return null;
     });
@@ -76,7 +77,9 @@ export default function RoomsOverviewPage() {
                     description: r.room_description || r.description,
                     capacity: r.room_capacity,
                 }));
-                setRooms(mappedRooms);
+
+                const sortedRooms = mappedRooms.sort((a: Room, b: Room) => a.room_id - b.room_id)
+                setRooms(sortedRooms);
             }
         } catch (err) {
             console.error("Failed to fetch rooms", err);
@@ -104,6 +107,12 @@ export default function RoomsOverviewPage() {
     const handleAddRoom = async () => {
         if (!roomName) {
             alert("Raumname ist erforderlich.");
+            return;
+        }
+
+        const capacityNum = parseInt(roomCapacity, 10);
+        if (roomCapacity && (isNaN(capacityNum) || capacityNum <= 0)) {
+            alert("Die Kapazität muss eine positive, ganze Zahl sein.");
             return;
         }
 
@@ -344,6 +353,14 @@ export default function RoomsOverviewPage() {
                                                 </div>
                                             </div>
                                         </dl>
+
+                                        <div className="mt-6 flex justify-center">
+                                            <Link
+                                                href={`calender?room_id=${room.room_id}`}
+                                                className="px-6 py-2 text-sm rounded-full bg-[#0f692b] text-white font-semibold hover:bg-green-800 transition-colors shadow-md w-fit">
+                                                Jetzt buchen
+                                                </Link>
+                                        </div>
                                     </div>
 
                                     <div className="order-1 md:order-none mb-0 text-3xl font-extrabold tracking-wide text-[#0f692b] text-center sm:mt-4 sm:text-4xl md:mt-6 md:text-5xl">
@@ -359,7 +376,7 @@ export default function RoomsOverviewPage() {
             {isAdmin && (
                <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={`fixed top-1/4 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
+        className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
             bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
             flex flex-col items-center justify-center text-green-700 text-xl
             shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
@@ -490,7 +507,7 @@ export default function RoomsOverviewPage() {
                                                 value={roomCapacity}
                                                 onChange={(e) => setRoomCapacity(e.target.value)}
                                                 className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0f692b] focus:border-[#0f692b] outline-none transition'
-                                                placeholder='Anzahl' />
+                                                placeholder='Anzahl' min="1"/>
                                         </div>
                                         <div>
                                             <label className='block text-sm font-medium text-gray-700 mb-2'>Gebäude</label>
