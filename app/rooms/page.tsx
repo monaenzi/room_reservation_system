@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 type Role = 'guest' | 'user' | 'admin';
 
@@ -352,6 +353,14 @@ export default function RoomsOverviewPage() {
                                                 </div>
                                             </div>
                                         </dl>
+
+                                        <div className="mt-6 flex justify-center">
+                                            <Link
+                                                href={`calender?room_id=${room.room_id}`}
+                                                className="px-6 py-2 text-sm rounded-full bg-[#0f692b] text-white font-semibold hover:bg-green-800 transition-colors shadow-md w-fit">
+                                                Jetzt buchen
+                                                </Link>
+                                        </div>
                                     </div>
 
                                     <div className="order-1 md:order-none mb-0 text-3xl font-extrabold tracking-wide text-[#0f692b] text-center sm:mt-4 sm:text-4xl md:mt-6 md:text-5xl">
