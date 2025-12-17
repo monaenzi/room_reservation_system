@@ -124,7 +124,18 @@ export async function POST(req: NextRequest) {
 
     conn = await pool.getConnection();
 
-    // slot_date kann 'YYYY-MM-DD' oder 'YYYY-MM-DDTHH:mm' sein
+    // Prüfen, ob User Admin ist
+    const userResult = await conn.query(
+      "SELECT role_id FROM users WHERE user_id = ?",
+      [user_id]
+    );
+
+    const isAdmin = userResult[0]?.role_id === 1;
+
+    // Setze booking_status basierend auf Rolle
+    const bookingStatus = isAdmin ? 1 : 0; // 1 = confirmed, 0 = pending
+
+    // slot_date normalisieren
     const normalizedDate =
       typeof slot_date === "string" && slot_date.includes("T")
         ? slot_date.split("T")[0]
@@ -157,10 +168,10 @@ export async function POST(req: NextRequest) {
     const timeslot_id = Number(timeslotResult.insertId);
     if (!timeslot_id) throw new Error("timeslot_id konnte nicht ermittelt werden.");
 
-    // Booking erstellen (booking_status=0 → pending)
+    // Booking erstellen - booking_status hängt von der Rolle ab
     const bookingResult: any = await conn.query(
-      "INSERT INTO booking (user_id, timeslot_id, reason, booking_status) VALUES (?, ?, ?, 0)",
-      [user_id, timeslot_id, reason]
+      "INSERT INTO booking (user_id, timeslot_id, reason, booking_status) VALUES (?, ?, ?, ?)",
+      [user_id, timeslot_id, reason, bookingStatus]
     );
 
     const booking_id = Number(bookingResult.insertId);
@@ -168,9 +179,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "Timeslot erfolgreich erstellt und gebucht.",
+        message: isAdmin
+          ? "Timeslot erfolgreich erstellt und sofort bestätigt (Admin)."
+          : "Timeslot erfolgreich erstellt und zur Bestätigung vorgelegt.",
         timeslot_id,
         booking_id,
+        booking_status: bookingStatus
       },
       { status: 201 }
     );
@@ -181,7 +195,6 @@ export async function POST(req: NextRequest) {
     if (conn) conn.release();
   }
 }
-
 
 // PUT: Admin-Aktionen (Annehmen/Ablehnen)
 export async function PUT(req: NextRequest) {

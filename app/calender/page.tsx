@@ -261,7 +261,7 @@ export default function RoomsPage() {
 
     // NEU: Funktion zum Laden der User-Buchungen
     const loadUserBookings = async () => {
-        if (role !== 'user' || !currentUserId) return;
+        if (role !== 'admin' && role !== 'user' || !currentUserId) return; //liste von Buchungen für admin wird jetzt gezeigt
 
         setIsLoadingUserBookings(true);
         try {
@@ -316,15 +316,15 @@ export default function RoomsPage() {
         }
     };
 
-    const handleReset = () => {
-        setSelectedRoomId(1);
-        setSelectedDate('');
-        setStartTime('08:00');
-        setEndTime('08:00');
-        setReason('');
-        setTimeError('');
-        setReasonError('');
-    };
+ //   const handleReset = () => {
+ //       setSelectedRoomId(1);
+ //       setSelectedDate('');
+ //       setStartTime('08:00');
+ //       setEndTime('08:00');
+ //       setReason('');
+ //       setTimeError('');
+ //       setReasonError('');
+ //   };
 
     const handleBookingSubmit = async () => {
         console.log("handleBookingSubmit:currenUserId= ", currentUserId);
@@ -939,12 +939,30 @@ export default function RoomsPage() {
 
             {role === 'admin' && (
                 <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="fixed right-0 top-1/4 sm:top-1/5 translate-x-1 z-50 w-14 h-16 sm:w-20 sm:h-24 bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl flex flex-col items-center justify-center text-green-700 text-xl shadow-lg hover:bg-[#b4cfb3] transition-colors"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
+            bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
+            flex flex-col items-center justify-center text-green-700 text-xl
+            shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
+            ${isSidebarOpen
+                            ? 'right-[75vw] sm:right-80 translate-x-0'
+                            : 'right-0 translate-x-1'
+                        }
+        `}
                 >
-                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
-                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
-                    <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
+                    {isSidebarOpen ? (
+                        <div className="flex items-center justify-center w-full h-full">
+                            <span className="text-3xl font-bold text-green-700">➜</span>
+                        </div>
+
+
+                    ) : (
+                        <>
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
+                            <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
+                        </>
+                    )}
                 </button>
             )}
 
@@ -960,19 +978,21 @@ export default function RoomsPage() {
                     }`}
             >
                 <div className="flex flex-col h-full p-4">
-                    <button
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="self-end mb-4 text-[#0f692b] font-bold text-xl"
-                    >
-                        ✕
-                    </button>
+
+
 
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
-                    <button onClick={handleOpenRequestsPopup}
+                    <button onClick={() => {
+                        handleOpenRequestsPopup();
+                        setIsSidebarOpen(false);
+                    }}
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Anfragen verwalten
                     </button>
-                    <button onClick={() => setShowBlockPopup(true)}
+                    <button onClick={() => {
+                        setShowBlockPopup(true);
+                        setIsSidebarOpen(false);
+                    }}
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Tag/Zeitslots sperren
                     </button>
@@ -1103,10 +1123,10 @@ export default function RoomsPage() {
                         {/* Footer Buttons */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
-                                onClick={handleReset}
+                                onClick={() => setOpenBooking(false)}
                                 className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
-                                Zurücksetzen
+                                Abbrechen
                             </button>
                             <button
                                 onClick={handleBookingSubmit}
@@ -1119,7 +1139,7 @@ export default function RoomsPage() {
                 </div>
             )}
 
-            {openBookingList && role === 'user' && (
+            {openBookingList && (role === 'admin' || role === 'user') && ( //liste von Buchungen für admin wird jetzt gezeigt
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
                         {/* Header */}
