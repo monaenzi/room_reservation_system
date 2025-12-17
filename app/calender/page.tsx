@@ -234,12 +234,15 @@ export default function RoomsPage() {
                 const data = await response.json(); //konvertiert die antwort von json zu javascript objekt
 
                 if (data.rooms && Array.isArray(data.rooms)) { //prüfe ob rooms exisitiert und ein array ist
-                    setRooms(data.rooms); //speichert rooms in state
+                    const sortedRooms = [...data.rooms].sort((a,b) => a.room_id - b.room_id);
+                    
+                    setRooms(sortedRooms); //speichert rooms in state
 
 
-                    if (data.rooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
-                        setSelectedRoomId(data.rooms[0].room_id);
-                        setBlockRoomId(data.rooms[0].room_id);
+                    if (sortedRooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
+                        const lowestId = sortedRooms[0].room_id;
+                        setSelectedRoomId(lowestId);
+                        setBlockRoomId(lowestId);
                     }
                 } else {
                     console.error('Ungültiges Datenformat:', data);
