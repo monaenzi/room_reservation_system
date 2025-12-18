@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const RECURRING_BOOKING_MAX_YEARS = 2;
@@ -442,29 +442,40 @@ export default function RoomsPage() {
         }
     }, []);
 
-    useEffect(() => {
+    // AUTO-REFRESH FUNKTIONALITÄT
+    const fetchTimeslots = useCallback(async (isBackgroundRefresh = false) => {
         if (!selectedRoomId) return;
 
-        const fetchTimeslots = async () => {
-            try {
-                const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+        try {
+            const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
 
-                if (!res.ok) {
-                    throw new Error(`HTTP-Fehler! Status: ${res.status}`);
-                }
+            if (!res.ok) {
+                console.error(`HTTP-Fehler! Status: ${res.status}`);
+                return;
+            }
 
-                const text = await res.text();
-                const data = text ? JSON.parse(text) : [];
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : [];
 
-                setTimeslots(data);
-            } catch (err) {
-                console.error('Fehler beim Laden der Timeslots:', err);
+            setTimeslots(data);
+        } catch (err) {
+            console.error('Fehler beim Laden der Timeslots: ', err);
+
+            if (!isBackgroundRefresh) {
                 setTimeslots([]);
             }
-        };
-
-        fetchTimeslots();
+        }
     }, [selectedRoomId]);
+
+    useEffect(() => {
+        fetchTimeslots();
+
+        const intervalId = setInterval(() => {
+            fetchTimeslots(true);
+        }, 10000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchTimeslots]);
 
     useEffect(() => {
         const today = new Date();
@@ -558,10 +569,6 @@ export default function RoomsPage() {
             setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
             hasError = true;
         }
-        if (duration < 30) {
-            setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
-            hasError = true;
-        }
 
         if (endMinutes > 20 * 60) {
             setTimeError('Buchungen sind nur bis 20:00 Uhr möglich.');
@@ -584,6 +591,30 @@ export default function RoomsPage() {
             return;
         }
 
+        // PRÜFUNG AUF ZULETZT GEBUCHTE TERMINE
+        const startH = getHourFromTime(startTime);
+        const endH = getHourFromTime(endTime);
+
+        const isInterfering = timeslots.some(t => {
+            if (t.room_id !== selectedRoomId) return false;
+            if (normalizeSlotDate(t.slot_date) !== selectedDate) return false;
+
+            if (t.booking_status === 1 || t.timeslot_status === 3) {
+                const tStart = getHourFromTime(t.start_time);
+                const tEnd = getHourFromTime(t.end_time);
+                return (startH < tEnd && endH > tStart);
+            }
+            return false;
+        });
+
+        if (isInterfering) {
+            alert("Dieser Termin wurde soeben von jemand anderem gebucht. Der Kalender wird aktualisiert.");
+            setOpenBooking(false);
+            fetchTimeslots();
+            return;
+        }
+
+        // WIEDERKEHRENDE BUCHUNG LOGIK 
         let finalUntilDate = '';
         if (isRecurring) {
             if (twoYears) {
@@ -615,7 +646,12 @@ export default function RoomsPage() {
 
         const data = await res.json();
         if (!res.ok) {
-            setTimeError(data.message || 'Fehler beim Buchen.');
+            // Fehlermeldung für wiederkehrende Buchungen
+            if (data.message && data.message.includes('Konflikte mit bestehenden Buchungen')) {
+                setTimeError(data.message);
+            } else {
+                setTimeError(data.message || 'Fehler beim Buchen.');
+            }
             return;
         }
 
@@ -632,21 +668,16 @@ export default function RoomsPage() {
         setShowUntilDate(false);
         setUntilDate('');
 
-        fetch(`/api/calendar?room_id=${selectedRoomId}`)
-            .then(res => res.json())
-            .then(data => setTimeslots(data))
-            .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+        // Auto-refresh nutzen
+        fetchTimeslots();
     };
 
     const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
-        // HIER ÄNDERN - Bessere Confirm Messages
         if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
-            // FÜR SERIE: "Alle Termine löschen"
             if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
                 return;
             }
         } else {
-            // FÜR EINZELNE BUCHUNG: Einfach "Buchung löschen"
             if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
                 return;
             }
@@ -678,12 +709,7 @@ export default function RoomsPage() {
             }
 
             loadUserBookings();
-
-            if (selectedRoomId) {
-                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-                const timeslotsData = await timeslotsRes.json();
-                setTimeslots(timeslotsData);
-            }
+            fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Löschen:', err);
@@ -779,11 +805,7 @@ export default function RoomsPage() {
 
             alert('Slot erfolgreich gesperrt!');
             setShowBlockPopup(false);
-
-            fetch(`/api/calendar?room_id=${selectedRoomId}`)
-                .then(res => res.json())
-                .then(data => setTimeslots(data))
-                .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+            fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Sperren:', err);
@@ -859,12 +881,7 @@ export default function RoomsPage() {
             }
 
             loadAdminRequests();
-
-            if (selectedRoomId) {
-                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-                const timeslotsData = await timeslotsRes.json();
-                setTimeslots(timeslotsData);
-            }
+            fetchTimeslots();
 
             alert(`Buchung erfolgreich ${action === 'accept' ? 'angenommen' : 'abgelehnt'}!`);
 
