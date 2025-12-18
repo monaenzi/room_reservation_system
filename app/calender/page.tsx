@@ -354,7 +354,7 @@ export default function RoomsPage() {
     const [blockDate, setBlockDate] = useState('');
     const [blockAllDay, setBlockAllDay] = useState(false);
     const [blockStart, setBlockStart] = useState('08:00');
-    const [blockEnd, setBlockEnd] = useState('20:00');
+    const [blockEnd, setBlockEnd] = useState('21:00');
 
     const [openBooking, setOpenBooking] = useState(false);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -778,7 +778,7 @@ export default function RoomsPage() {
         }
 
         const startMinutes = timeToMinutes(blockAllDay ? '08:00' : blockStart);
-        const endMinutes = timeToMinutes(blockAllDay ? '20:00' : blockEnd);
+        const endMinutes = timeToMinutes(blockAllDay ? '21:00' : blockEnd);
 
         if (endMinutes <= startMinutes) {
             alert('Endzeit muss nach der Startzeit liegen.');
@@ -793,7 +793,7 @@ export default function RoomsPage() {
                     room_id: blockRoomId,
                     slot_date: blockDate,
                     start_time: blockAllDay ? '08:00' : blockStart,
-                    end_time: blockAllDay ? '20:00' : blockEnd,
+                    end_time: blockAllDay ? '21:00' : blockEnd,
                     reason: blockAllDay ? 'Ganzer Tag gesperrt' : 'Zeitslot gesperrt'
                 })
             });
@@ -843,33 +843,22 @@ export default function RoomsPage() {
         setRequestsShowPopup(true);
     };
 
-    // Funktion zum Annehmen/Ablehnen von Buchungen
-    const handleAdminAction = async (bookingId: number, action: 'accept' | 'reject') => {
+
+    const handleAdminAction = async (group: GroupedBooking, action: 'accept' | 'reject') => {
         try {
-            if (groupedRequest.pattern_id) {
-                const res = await fetch('/api/calendar', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pattern_id: groupedRequest.pattern_id, action })
-                });
+            const body = group.pattern_id
+                ? { pattern_id: group.pattern_id, action }
+                : { booking_ids: group.booking_ids, action };
 
-                if (!res.ok) {
-                    const error = await res.json();
-                    throw new Error(error.message || 'Fehler bei der Aktion');
-                }
-            } else {
-                for (const bookingId of groupedRequest.booking_ids) {
-                    const res = await fetch('/api/calendar', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ booking_id: bookingId, action })
-                    });
+            const res = await fetch('/api/calendar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
 
-                    if (!res.ok) {
-                        const error = await res.json();
-                        throw new Error(error.message || 'Fehler bei der Aktion');
-                    }
-                }
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Fehler bei der Aktion');
             }
 
             loadAdminRequests();

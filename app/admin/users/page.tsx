@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TriangleAlert } from 'lucide-react';
 
 type User = {
   id: number;
@@ -707,7 +708,7 @@ export default function AdminUsersPage() {
                   disabled={resetLoading}
                   className="w-full rounded-xl border-2 border-red-300 bg-red-100 py-2 text-sm font-medium text-red-500 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-colors"
                 >
-                  {resetLoading ? "..." : "Passwort auf Standard (Raum123!) zurücksetzen"}
+                  {resetLoading ? "..." : "Passwort zurücksetzen"}
                 </button>
                 <p className="mt-1 text-center text-xs font-semibold text-green-600">
                   {resetSuccess}
@@ -745,19 +746,16 @@ export default function AdminUsersPage() {
             <div className="mb-1">
               <h2 className="text-center text-3xl font-bold text-red-700">User löschen</h2>
               <button onClick={cancelDelete} className="text-neutral-400 hover:text-neutral-600">
-                <svg className="text-neutral-400 hover:text-neutral-600">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
               </button>
             </div>
 
             <div className="space-y-1">
               <div className="text-center">
-                <svg className="mx-auto h-20 w-20 text-red-500 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-
-                <h3 className="mt-4 text-lg font-semibold text-neutral-800">Möchten Sie diesen User wirklich löschen?</h3>
+                <TriangleAlert
+                  className="mx-auto h-20 w-20 text-red-500"
+                  strokeWidth={2}
+                />
+                <h3 className="mt-1 text-lg font-semibold text-neutral-800">Möchten Sie diesen User wirklich löschen?</h3>
 
                 <p className="mt-2 text-neutral-600">
                   <span className="font-semibold">{userToDelete.first_name} {userToDelete.last_name}</span>
