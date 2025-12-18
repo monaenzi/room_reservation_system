@@ -26,7 +26,7 @@ CREATE TABLE room (
     building VARCHAR(100),
     is_visible TINYINT(1) DEFAULT 1 NOT NULL,
     created_by INT,
-    image_url VARCHAR(255)
+    image_url VARCHAR(255),
     FOREIGN KEY (created_by) REFERENCES users(user_id)
 );
 
@@ -46,11 +46,31 @@ CREATE TABLE booking (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     timeslot_id INT NOT NULL,
+    pattern_id INT NULL,
+    is_recurring TINYINT(1) NOT NULL DEFAULT 0,
     reason TEXT NOT NULL,
-    booking_status INT DEFAULT 0 NOT NULL, -- status: 0 = pending, 1 = confirmed, 2 =declined, 3= cancelled
+    booking_status INT NOT NULL DEFAULT 0, -- 0 = pending, 1 = confirmed, 2 = declined, 3 = cancelled
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     responded_at TIMESTAMP NULL,
     cancelled_at TIMESTAMP NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (timeslot_id) REFERENCES timeslot(timeslot_id)
+    CONSTRAINT fk_booking_user
+        FOREIGN KEY (user_id) 
+        REFERENCES users(user_id),
+    CONSTRAINT fk_booking_timeslot
+        FOREIGN KEY (timeslot_id) 
+        REFERENCES timeslot(timeslot_id),
+    CONSTRAINT fk_booking_pattern
+        FOREIGN KEY (pattern_id) 
+        REFERENCES recurring_pattern(pattern_id)
+        ON DELETE SET NULL
+);
+
+
+CREATE TABLE recurring_pattern (
+    pattern_id INT AUTO_INCREMENT PRIMARY KEY,
+    frequency ENUM('daily', 'weekly') NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NULL,
+    until_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
