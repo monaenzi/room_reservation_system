@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+const RECURRING_BOOKING_MAX_YEARS = 2;
 
 type Role = 'guest' | 'user' | 'admin';
 type Weekday = 'Montag' | 'Dienstag' | 'Mittwoch' | 'Donnerstag' | 'Freitag';
@@ -11,7 +13,7 @@ type Timeslot = {
     room_id: number;
     timeslot_status: number;
     slot_date: string | Date;
-    start_time: string
+    start_time: string;
     end_time: string;
     blocked_reason?: string;
     name?: string;
@@ -19,8 +21,6 @@ type Timeslot = {
     user_id?: number;
     username?: string;
 };
-
-
 
 type BookingRequest = {
     booking_id: number;
@@ -35,21 +35,28 @@ type BookingRequest = {
     timeslot_status: number;
     username: string;
     room_name: string;
+    is_recurring?: boolean;
+    pattern_id?: number | null;
+    frequency?: string;
 };
 
-// NEU: Type für User-Buchungen
 type UserBooking = {
     booking_id: number;
     user_id: number;
     timeslot_id: number;
     reason: string;
-    booking_status: number; // 0=pending, 1=accepted, 2=declined
+    booking_status: number;
     room_id: number;
     slot_date: string;
     start_time: string;
     end_time: string;
     timeslot_status: number;
     room_name: string;
+    parent_booking_id?: number | null;
+    is_recurring?: boolean;
+    pattern_id?: number | null;
+    until_date?: string | null;
+    frequency?: string;
 };
 
 type Room = {
@@ -64,6 +71,28 @@ type Room = {
     image_url?: string;
 };
 
+type GroupedBooking = {
+    grouped_id: string;
+    user_id: number;
+    room_id: number;
+    room_name: string;
+    reason: string;
+    booking_status: number;
+    start_date: string;
+    end_date: string;
+    start_time: string;
+    end_time: string;
+    weekday: string;
+    bookings_count: number;
+    booking_ids: number[];
+    is_recurring: boolean;
+    pattern_id?: number | null;
+    until_date?: string;
+    first_booking_date: string;
+    last_booking_date: string;
+    frequency?: string;
+};
+
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i);
 const WEEKDAYS: Weekday[] = [
     'Montag',
@@ -73,12 +102,6 @@ const WEEKDAYS: Weekday[] = [
     'Freitag',
 ];
 
-//const ROOMS = [
- //   { room_id: 1, room_name: 'Raum 1' },
-   // { room_id: 2, room_name: 'Raum 2' }
-//];
-
-// Generate time options from 8:00 to 20:00 in 30-minute steps
 const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
     const hour = Math.floor(i / 2) + 8;
     const minute = i % 2 === 0 ? '00' : '30';
@@ -103,7 +126,6 @@ function formatFullDate(date: Date): string {
 function getWeekRange(monday: Date): string {
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
-
     return `${monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })} - ${friday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
 }
 
@@ -113,6 +135,7 @@ function toISODate(date: Date): string {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+
 function getHourFromTime(timeStr: string): number {
     return parseInt(timeStr.split(':')[0], 10);
 }
@@ -123,19 +146,29 @@ function timeToMinutes(time: string): number {
 }
 
 function formatTimeForDisplay(timeStr: string): string {
-    return timeStr.substring(0, 5); // Remove seconds if present
+    return timeStr.substring(0, 5);
 }
 
+function toLocalISODate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 function normalizeSlotDate(dbDate: string | Date): string {
     if (!dbDate) return "";
     if (dbDate instanceof Date) {
-        return dbDate.toISOString().split("T")[0];
+        return toLocalISODate(dbDate);
     }
-    // ISO-String oder nur "YYYY-MM-DD"
     return dbDate.split("T")[0];
 }
 
+function parseISODateAsLocalDate(dateStr: string): Date {
+    const base = dateStr.split('T')[0];
+    const [y, m, d] = base.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+}
 
 function getBookingStatusText(status: number): string {
     switch (status) {
@@ -155,41 +188,173 @@ function getBookingStatusColor(status: number): string {
     }
 }
 
+function getWeekdayFromDate(dateStr: string): string {
+    const date = parseISODateAsLocalDate(dateStr);
+    return date.toLocaleDateString('de-DE', { weekday: 'long' });
+}
+
+function groupBookings(bookings: UserBooking[]): GroupedBooking[] {
+    const groupedMap = new Map<string, GroupedBooking>();
+
+    bookings.forEach(booking => {
+        const key = booking.pattern_id
+            ? `pattern_${booking.pattern_id}`
+            : `${booking.user_id}_${booking.room_id}_${booking.start_time}_${booking.end_time}_${booking.reason}_${booking.parent_booking_id || 'single'}`;
+
+        if (!groupedMap.has(key)) {
+            const weekday = getWeekdayFromDate(booking.slot_date);
+
+            groupedMap.set(key, {
+                grouped_id: key,
+                user_id: booking.user_id,
+                room_id: booking.room_id,
+                room_name: booking.room_name,
+                reason: booking.reason,
+                booking_status: booking.booking_status,
+                start_date: booking.slot_date,
+                end_date: booking.slot_date,
+                start_time: booking.start_time,
+                end_time: booking.end_time,
+                weekday: weekday,
+                bookings_count: 1,
+                booking_ids: [booking.booking_id],
+                is_recurring: booking.is_recurring || false,
+                pattern_id: booking.pattern_id || null,
+                until_date: booking.until_date || undefined,
+                first_booking_date: booking.slot_date,
+                last_booking_date: booking.slot_date,
+                frequency: booking.frequency || undefined
+            });
+        } else {
+            const group = groupedMap.get(key)!;
+
+            const currentDate = parseISODateAsLocalDate(booking.slot_date);
+            const firstDate = parseISODateAsLocalDate(group.first_booking_date);
+            const lastDate = parseISODateAsLocalDate(group.last_booking_date);
+
+            if (currentDate < firstDate) {
+                group.first_booking_date = booking.slot_date;
+                group.start_date = booking.slot_date;
+            }
+
+            if (currentDate > lastDate) {
+                group.last_booking_date = booking.slot_date;
+                group.end_date = booking.slot_date;
+            }
+
+            group.bookings_count += 1;
+            group.booking_ids.push(booking.booking_id);
+        }
+    });
+
+    return Array.from(groupedMap.values()).map(group => {
+        const startDate = parseISODateAsLocalDate(group.first_booking_date);
+        const endDate = parseISODateAsLocalDate(group.last_booking_date);
+
+        return {
+            ...group,
+            start_date: group.first_booking_date,
+            end_date: group.last_booking_date
+        };
+    });
+}
+
+function groupAdminRequests(requests: BookingRequest[]): GroupedBooking[] {
+    const groupedMap = new Map<string, GroupedBooking>();
+
+    requests.forEach(request => {
+        const key = request.pattern_id
+            ? `pattern_${request.pattern_id}`
+            : `${request.user_id}_${request.room_id}_${request.start_time}_${request.end_time}_${request.reason}`;
+
+        if (!groupedMap.has(key)) {
+            const weekday = getWeekdayFromDate(request.slot_date);
+
+            groupedMap.set(key, {
+                grouped_id: key,
+                user_id: request.user_id,
+                room_id: request.room_id,
+                room_name: request.room_name,
+                reason: request.reason,
+                booking_status: request.booking_status,
+                start_date: request.slot_date,
+                end_date: request.slot_date,
+                start_time: request.start_time,
+                end_time: request.end_time,
+                weekday: weekday,
+                bookings_count: 1,
+                booking_ids: [request.booking_id],
+                is_recurring: request.is_recurring || false,
+                pattern_id: request.pattern_id || null,
+                first_booking_date: request.slot_date,
+                last_booking_date: request.slot_date,
+                frequency: request.frequency || undefined
+            });
+        } else {
+            const group = groupedMap.get(key)!;
+
+            const currentDate = parseISODateAsLocalDate(request.slot_date);
+            const firstDate = parseISODateAsLocalDate(group.first_booking_date);
+            const lastDate = parseISODateAsLocalDate(group.last_booking_date);
+
+            if (currentDate < firstDate) {
+                group.first_booking_date = request.slot_date;
+                group.start_date = request.slot_date;
+            }
+
+            if (currentDate > lastDate) {
+                group.last_booking_date = request.slot_date;
+                group.end_date = request.slot_date;
+            }
+
+            group.bookings_count += 1;
+            group.booking_ids.push(request.booking_id);
+        }
+    });
+
+    return Array.from(groupedMap.values()).map(group => {
+        return {
+            ...group,
+            start_date: group.first_booking_date,
+            end_date: group.last_booking_date
+        };
+    });
+}
+
 export default function RoomsPage() {
     const searchParams = useSearchParams();
-    const initialRoomId = searchParams.get('room_id')
+    const initialRoomId = searchParams.get('room_id');
     const [role, setRole] = useState<Role>('guest');
-    const [selectedRoomId, setSelectedRoomId] = useState(() => {
+    const [selectedRoomId, setSelectedRoomId] = useState<number>(() => {
         if (initialRoomId) {
             const parsed = parseInt(initialRoomId, 10);
             return !isNaN(parsed) ? parsed : 1;
         }
+        return 1;
     });
-    
+
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
 
     const [adminRequests, setAdminRequests] = useState<BookingRequest[]>([]);
     const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+    const [groupedAdminRequests, setGroupedAdminRequests] = useState<GroupedBooking[]>([]);
 
-    // NEU: States für User-Buchungen
     const [userBookings, setUserBookings] = useState<UserBooking[]>([]);
     const [isLoadingUserBookings, setIsLoadingUserBookings] = useState(false);
+    const [groupedUserBookings, setGroupedUserBookings] = useState<GroupedBooking[]>([]);
 
-    // Admin sidebar states
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showRequestsPopup, setRequestsShowPopup] = useState(false);
     const [showBlockPopup, setShowBlockPopup] = useState(false);
 
-    // Block popup states
     const [blockRoomId, setBlockRoomId] = useState(1);
     const [blockDate, setBlockDate] = useState('');
     const [blockAllDay, setBlockAllDay] = useState(false);
     const [blockStart, setBlockStart] = useState('08:00');
     const [blockEnd, setBlockEnd] = useState('20:00');
 
-    // Booking popup states
     const [openBooking, setOpenBooking] = useState(false);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
@@ -199,60 +364,62 @@ export default function RoomsPage() {
     const [timeError, setTimeError] = useState('');
     const [reasonError, setReasonError] = useState('');
 
-    // Booking list popup state
-    const [openBookingList, setOpenBookingList] = useState(false);
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
+    const [twoYears, setTwoYears] = useState(false);
+    const [showUntilDate, setShowUntilDate] = useState(false);
+    const [untilDate, setUntilDate] = useState('');
 
-    // NEU: Aktuelle User-ID (in echtem Projekt aus Auth holen)
+    const [openBookingList, setOpenBookingList] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [showManageSeriesPopup, setShowManageSeriesPopup] = useState(false);
+    const [selectedSeries, setSelectedSeries] = useState<GroupedBooking | null>(null);
+    const [newEndDate, setNewEndDate] = useState('');
 
     const [rooms, setRooms] = useState<Room[]>([]);
     const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
-// räume dynamisch aus DB laden
-useEffect(() => {
-    const fetchRooms = async () => { 
-        try {
-            setIsLoadingRooms(true);
-            
-            const response = await fetch('/api/rooms?visible=true'); //mache einen http request zu der api ?visible=ture > holt sichtbare räume
-            
-            if (!response.ok) { //prüfe ob der request erfolgreich war
-                throw new Error(`Fehler: ${response.status}`); // wenn nicht erfolgreich > werfe einen fehler
-            }
-            
-            const data = await response.json(); //konvertiert die antwort von json zu javascript objekt
-            
-            if (data.rooms && Array.isArray(data.rooms)) { //prüfe ob rooms exisitiert und ein array ist
-                setRooms(data.rooms); //speichert rooms in state
-                
-                
-                if (data.rooms.length > 0 && !selectedRoomId) { //setze automatisch den ersten raum als ausgewählt aber nur wenn räume vorhanden sind und noch kein raum ausgewählt ist
-                    setSelectedRoomId(data.rooms[0].room_id);
-                    setBlockRoomId(data.rooms[0].room_id);
+    useEffect(() => {
+        const fetchRooms = async () => {
+            try {
+                setIsLoadingRooms(true);
+                const response = await fetch('/api/rooms?visible=true');
+
+                if (!response.ok) {
+                    throw new Error(`Fehler: ${response.status}`);
                 }
-            } else {
-                console.error('Ungültiges Datenformat:', data);
+
+                const data = await response.json();
+
+                if (data.rooms && Array.isArray(data.rooms)) {
+                    const sortedRooms = [...data.rooms].sort((a, b) => a.room_id - b.room_id);
+                    setRooms(sortedRooms);
+
+                    if (sortedRooms.length > 0 && !initialRoomId) {
+                        const lowestId = sortedRooms[0].room_id;
+                        setSelectedRoomId(lowestId);
+                        setBlockRoomId(lowestId);
+                    }
+                } else {
+                    console.error('Ungültiges Datenformat:', data);
+                    setRooms([]);
+                }
+            } catch (err) {
+                console.error('Fehler beim Laden der Räume:', err);
                 setRooms([]);
+            } finally {
+                setIsLoadingRooms(false);
             }
-        } catch (err) {
-            console.error('Fehler beim Laden der Räume:', err);
-            setRooms([]);
-        } finally {
-            setIsLoadingRooms(false);
-        }
-    };
+        };
 
-    fetchRooms();
-}, []);
-
+        fetchRooms();
+    }, [initialRoomId]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
             const storedRole = (localStorage.getItem('userRole') as Role) || 'guest';
             const storedUserId = localStorage.getItem('userId');
-
-            console.log('Current Auth State from LocalStorage:', { isLoggedIn, storedRole, storedUserId });
 
             if (!isLoggedIn) {
                 setRole('guest');
@@ -266,41 +433,49 @@ useEffect(() => {
                     if (!isNaN(parsed)) {
                         setCurrentUserId(parsed);
                     } else {
-                        console.warn("Calendar: storedUserID ist keineZahl: ", storedUserId);
                         setCurrentUserId(null);
                     }
                 } else {
-                    console.warn("Calendar: Keine userId im LocalStorage gefunden.");
                     setCurrentUserId(null);
                 }
             }
         }
     }, []);
 
-
-    useEffect(() => {
+    // AUTO-REFRESH FUNKTIONALITÄT
+    const fetchTimeslots = useCallback(async (isBackgroundRefresh = false) => {
         if (!selectedRoomId) return;
 
-        const fetchTimeslots = async () => {
-            try {
-                const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+        try {
+            const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
 
-                if (!res.ok) {
-                    throw new Error(`HTTP-Fehler! Status: ${res.status}`);
-                }
+            if (!res.ok) {
+                console.error(`HTTP-Fehler! Status: ${res.status}`);
+                return;
+            }
 
-                const text = await res.text();
-                const data = text ? JSON.parse(text) : [];
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : [];
 
-                setTimeslots(data);
-            } catch (err) {
-                console.error('Fehler beim Laden der Timeslots:', err);
+            setTimeslots(data);
+        } catch (err) {
+            console.error('Fehler beim Laden der Timeslots: ', err);
+
+            if (!isBackgroundRefresh) {
                 setTimeslots([]);
             }
-        };
-
-        fetchTimeslots();
+        }
     }, [selectedRoomId]);
+
+    useEffect(() => {
+        fetchTimeslots();
+
+        const intervalId = setInterval(() => {
+            fetchTimeslots(true);
+        }, 10000);
+
+        return () => clearInterval(intervalId);
+    }, [fetchTimeslots]);
 
     useEffect(() => {
         const today = new Date();
@@ -311,9 +486,8 @@ useEffect(() => {
         }
     }, []);
 
-    // NEU: Funktion zum Laden der User-Buchungen
     const loadUserBookings = async () => {
-        if (role !== 'admin' && role !== 'user' || !currentUserId) return; //liste von Buchungen für admin wird jetzt gezeigt
+        if ((role !== 'admin' && role !== 'user') || !currentUserId) return;
 
         setIsLoadingUserBookings(true);
         try {
@@ -327,6 +501,9 @@ useEffect(() => {
             if (!res.ok) throw new Error('Fehler beim Laden der Buchungen');
             const data = await res.json();
             setUserBookings(data);
+
+            const grouped = groupBookings(data);
+            setGroupedUserBookings(grouped);
         } catch (err) {
             console.error('Fehler beim Laden der User-Buchungen:', err);
             alert('Fehler beim Laden der Buchungen');
@@ -335,13 +512,11 @@ useEffect(() => {
         }
     };
 
-    // NEU: "Meine Buchungen" Popup öffnen (mit Daten laden)
     const handleOpenBookingList = () => {
         loadUserBookings();
         setOpenBookingList(true);
     };
 
-    // Function to open popup on cell click
     const handleCellClick = (dateIndex: number, hour: number) => {
         if (role !== 'user' && role !== 'admin') return;
 
@@ -362,25 +537,12 @@ useEffect(() => {
         setStartTime(newStartTime);
         setTimeError('');
 
-        // If end time is before or equal to start time, set it to start time
         if (timeToMinutes(endTime) <= timeToMinutes(newStartTime)) {
             setEndTime(newStartTime);
         }
     };
 
- //   const handleReset = () => {
- //       setSelectedRoomId(1);
- //       setSelectedDate('');
- //       setStartTime('08:00');
- //       setEndTime('08:00');
- //       setReason('');
- //       setTimeError('');
- //       setReasonError('');
- //   };
-
     const handleBookingSubmit = async () => {
-        console.log("handleBookingSubmit:currenUserId= ", currentUserId);
-
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = timeToMinutes(endTime);
         const duration = endMinutes - startMinutes;
@@ -388,15 +550,20 @@ useEffect(() => {
         setTimeError('');
         setReasonError('');
 
-
-
         if (!currentUserId) {
             setReasonError('Fehler: keine Benutzer-ID gefunden. Bitte neu einloggen.');
-            console.error('Booking abgebrochen: currentUserId ist null/undefined.');
             return;
         }
 
         let hasError = false;
+
+        // Check für Wochenende
+        const selectedDateObj = new Date(selectedDate || '');
+        const dayOfWeek = selectedDateObj.getDay(); // 0 = Sonntag, 6 = Samstag
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            setTimeError('Buchungen sind nur von Montag bis Freitag möglich.');
+            hasError = true;
+        }
 
         if (duration < 30) {
             setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
@@ -413,8 +580,51 @@ useEffect(() => {
             hasError = true;
         }
 
+        if (isRecurring) {
+            if (!twoYears && !untilDate) {
+                setReasonError('Bitte wählen Sie "2 Jahre" oder geben Sie ein Enddatum ein.');
+                hasError = true;
+            }
+        }
+
         if (hasError) {
             return;
+        }
+
+        // PRÜFUNG AUF ZULETZT GEBUCHTE TERMINE
+        const startH = getHourFromTime(startTime);
+        const endH = getHourFromTime(endTime);
+
+        const isInterfering = timeslots.some(t => {
+            if (t.room_id !== selectedRoomId) return false;
+            if (normalizeSlotDate(t.slot_date) !== selectedDate) return false;
+
+            if (t.booking_status === 1 || t.timeslot_status === 3) {
+                const tStart = getHourFromTime(t.start_time);
+                const tEnd = getHourFromTime(t.end_time);
+                return (startH < tEnd && endH > tStart);
+            }
+            return false;
+        });
+
+        if (isInterfering) {
+            alert("Dieser Termin wurde soeben von jemand anderem gebucht. Der Kalender wird aktualisiert.");
+            setOpenBooking(false);
+            fetchTimeslots();
+            return;
+        }
+
+        // WIEDERKEHRENDE BUCHUNG LOGIK 
+        let finalUntilDate = '';
+        if (isRecurring) {
+            if (twoYears) {
+                const start = new Date(selectedDate || '');
+                const maxDate = new Date(start);
+                maxDate.setFullYear(start.getFullYear() + RECURRING_BOOKING_MAX_YEARS);
+                finalUntilDate = maxDate.toISOString().split('T')[0];
+            } else {
+                finalUntilDate = untilDate;
+            }
         }
 
         const res = await fetch('/api/calendar', {
@@ -426,57 +636,137 @@ useEffect(() => {
                 slot_date: selectedDate,
                 start_time: startTime,
                 end_time: endTime,
-                reason
+                reason,
+                is_recurring: isRecurring,
+                frequency: isRecurring ? frequency : null,
+                until_date: isRecurring ? finalUntilDate : null,
+                max_years: RECURRING_BOOKING_MAX_YEARS
             })
         });
 
         const data = await res.json();
         if (!res.ok) {
-            setTimeError(data.message || 'Fehler beim Buchen.');
+            // Fehlermeldung für wiederkehrende Buchungen
+            if (data.message && data.message.includes('Konflikte mit bestehenden Buchungen')) {
+                setTimeError(data.message);
+            } else {
+                setTimeError(data.message || 'Fehler beim Buchen.');
+            }
             return;
         }
 
-        alert(`Buchung erfolgreich! ID: ${data.booking_id}`);
-        setOpenBooking(false);
+        if (isRecurring) {
+            alert('Wiederkehrende Buchung erfolgreich erstellt!');
+        } else {
+            alert('Buchung erfolgreich!');
+        }
 
-        // Timeslots neu laden
-        fetch(`/api/calendar?room_id=${selectedRoomId}`)
-            .then(res => res.json())
-            .then(data => setTimeslots(data))
-            .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+        setOpenBooking(false);
+        setIsRecurring(false);
+        setFrequency('daily');
+        setTwoYears(false);
+        setShowUntilDate(false);
+        setUntilDate('');
+
+        // Auto-refresh nutzen
+        fetchTimeslots();
     };
 
-    // NEU: Funktion zum Löschen einer Buchung (für User)
-    const handleDeleteBooking = async (bookingId: number) => {
-        if (!confirm('Möchten Sie diese Buchung wirklich löschen?')) {
-            return;
+    const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
+        if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
+            if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
+                return;
+            }
+        } else {
+            if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
+                return;
+            }
         }
 
         try {
-            const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
-                method: 'DELETE',
-            });
+            if (groupedBooking.pattern_id) {
+                const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
+                    method: 'DELETE',
+                });
 
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || 'Fehler beim Löschen');
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Fehler beim Löschen');
+                }
+                alert('Buchungen erfolgreich gelöscht!');
+            } else {
+                for (const bookingId of groupedBooking.booking_ids) {
+                    const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (!res.ok) {
+                        const error = await res.json();
+                        throw new Error(error.message || 'Fehler beim Löschen');
+                    }
+                }
+                alert('Buchung erfolgreich gelöscht!');
             }
 
-            alert('Buchung erfolgreich gelöscht!');
-
-            // Buchungsliste neu laden
             loadUserBookings();
-
-            // Timeslots für aktuellen Raum neu laden
-            if (selectedRoomId) {
-                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-                const timeslotsData = await timeslotsRes.json();
-                setTimeslots(timeslotsData);
-            }
+            fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Löschen:', err);
             alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
+        }
+    };
+
+    const handleManageSeries = (group: GroupedBooking) => {
+        if (!group.is_recurring) return;
+        setSelectedSeries(group);
+        setNewEndDate(group.until_date || group.end_date);
+        setShowManageSeriesPopup(true);
+    };
+
+    const handleUpdateSeries = async () => {
+        if (!selectedSeries || !selectedSeries.pattern_id) return;
+
+        if (!newEndDate) {
+            alert('Bitte wählen Sie ein Enddatum aus.');
+            return;
+        }
+
+        const newEndDateObj = new Date(newEndDate);
+        const currentEndDateObj = new Date(selectedSeries.until_date || selectedSeries.end_date);
+
+        if (newEndDateObj > currentEndDateObj) {
+            alert('Das neue Enddatum darf nicht nach dem aktuellen Enddatum liegen.');
+            return;
+        }
+
+        if (!confirm(`Möchten Sie die Buchungen wirklich am ${newEndDate} beenden?\n\nBereits gebuchte Termine nach diesem Datum werden dauerhaft gelöscht.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/calendar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pattern_id: selectedSeries.pattern_id,
+                    action: 'update_end_date',
+                    end_date: newEndDate
+                })
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Fehler beim Aktualisieren der Serie');
+            }
+
+            alert('Buchungen erfolgreich aktualisiert!');
+            setShowManageSeriesPopup(false);
+            loadUserBookings();
+
+        } catch (err) {
+            console.error('Fehler beim Aktualisieren der Serie:', err);
+            alert(err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Serie');
         }
     };
 
@@ -486,7 +776,6 @@ useEffect(() => {
             return;
         }
 
-        // Validation
         const startMinutes = timeToMinutes(blockAllDay ? '08:00' : blockStart);
         const endMinutes = timeToMinutes(blockAllDay ? '20:00' : blockEnd);
 
@@ -497,7 +786,7 @@ useEffect(() => {
 
         try {
             const res = await fetch('/api/calendar', {
-                method: 'PATCH', // Wichtig: PATCH statt POST
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     room_id: blockRoomId,
@@ -514,14 +803,9 @@ useEffect(() => {
                 return;
             }
 
-            alert(`Slot erfolgreich gesperrt! ID: ${data.timeslot_id}`);
+            alert('Slot erfolgreich gesperrt!');
             setShowBlockPopup(false);
-
-            // Timeslots neu laden
-            fetch(`/api/calendar?room_id=${selectedRoomId}`)
-                .then(res => res.json())
-                .then(data => setTimeslots(data))
-                .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
+            fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Sperren:', err);
@@ -529,7 +813,6 @@ useEffect(() => {
         }
     };
 
-    // Funktion zum Laden der Admin-Anfragen
     const loadAdminRequests = async () => {
         setIsLoadingRequests(true);
         try {
@@ -543,6 +826,9 @@ useEffect(() => {
             if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
             const data = await res.json();
             setAdminRequests(data);
+
+            const grouped = groupAdminRequests(data);
+            setGroupedAdminRequests(grouped);
         } catch (err) {
             console.error('Fehler beim Laden der Admin-Anfragen:', err);
             alert('Fehler beim Laden der Anfragen');
@@ -551,39 +837,53 @@ useEffect(() => {
         }
     };
 
-    // Admin-Requests-Popup öffnen (mit Daten laden)
     const handleOpenRequestsPopup = () => {
         loadAdminRequests();
         setRequestsShowPopup(true);
     };
 
-    // Funktion zum Annehmen/Ablehnen von Buchungen
-    const handleAdminAction = async (bookingId: number, action: 'accept' | 'reject') => {
-        if (!confirm(`Möchten Sie diese Buchung wirklich ${action === 'accept' ? 'annehmen' : 'ablehnen'}?`)) {
-            return;
+    const handleAdminAction = async (groupedRequest: GroupedBooking, action: 'accept' | 'reject') => {
+        if (action === 'accept') {
+            if (!confirm(`Möchten Sie diese Buchung wirklich annehmen?`)) {
+                return;
+            }
+        } else {
+            if (!confirm(`Möchten Sie diese Buchung wirklich ablehnen?`)) {
+                return;
+            }
         }
 
         try {
-            const res = await fetch('/api/calendar', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ booking_id: bookingId, action })
-            });
+            if (groupedRequest.pattern_id) {
+                const res = await fetch('/api/calendar', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pattern_id: groupedRequest.pattern_id, action })
+                });
 
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message || 'Fehler bei der Aktion');
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Fehler bei der Aktion');
+                }
+            } else {
+                for (const bookingId of groupedRequest.booking_ids) {
+                    const res = await fetch('/api/calendar', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ booking_id: bookingId, action })
+                    });
+
+                    if (!res.ok) {
+                        const error = await res.json();
+                        throw new Error(error.message || 'Fehler bei der Aktion');
+                    }
+                }
             }
 
-            // Liste neu laden
             loadAdminRequests();
+            fetchTimeslots();
 
-            // Timeslots für aktuellen Raum neu laden
-            if (selectedRoomId) {
-                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-                const timeslotsData = await timeslotsRes.json();
-                setTimeslots(timeslotsData);
-            }
+            alert(`Buchung erfolgreich ${action === 'accept' ? 'angenommen' : 'abgelehnt'}!`);
 
         } catch (err) {
             console.error('Fehler bei Admin-Aktion:', err);
@@ -605,7 +905,7 @@ useEffect(() => {
     );
 
     const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot | undefined => {
-        const dateStr = toISODate(weekDates[dateIndex]); // "YYYY-MM-DD"
+        const dateStr = toISODate(weekDates[dateIndex]);
 
         return timeslotsForRoom.find((t) => {
             const slotDateStr = normalizeSlotDate(t.slot_date);
@@ -617,24 +917,6 @@ useEffect(() => {
             return hour >= startHour && hour < endHour;
         });
     };
-
-
-    function getSlotForCell(
-        timeslots: Timeslot[],
-        weekDates: Date[],
-        dateIndex: number,
-        hour: number
-    ): Timeslot | undefined {
-        const dateStr = toISODate(weekDates[dateIndex]);
-
-        return timeslots.find((t) => {
-            if (t.slot_date !== dateStr) return false;
-            const startHour = getHourFromTime(t.start_time);
-            const endHour = getHourFromTime(t.end_time);
-            return hour >= startHour && hour < endHour;
-        });
-    }
-
 
     const isCurrentWeek = useMemo(() => {
         const todayMonday = getMonday(new Date());
@@ -650,7 +932,6 @@ useEffect(() => {
         return currentDayIndex !== currentRealDayIndex;
     }, [isCurrentWeek, currentDayIndex]);
 
-    // Get available end times based on start time
     const availableEndTimes = useMemo(() => {
         const startMinutes = timeToMinutes(startTime);
         return TIME_OPTIONS.filter(time => timeToMinutes(time) >= startMinutes);
@@ -667,7 +948,7 @@ useEffect(() => {
             const endHour = getHourFromTime(t.end_time);
 
             if (hour >= startHour && hour < endHour) {
-                return t.booking_status === 1; // bestätigt
+                return t.booking_status === 1;
             }
             return false;
         });
@@ -684,7 +965,6 @@ useEffect(() => {
             return hour === startHour;
         });
     };
-
 
     const goToPreviousWeek = () => {
         setCurrentWeekStart((prev) => {
@@ -704,11 +984,8 @@ useEffect(() => {
 
     const goToCurrentWeek = () => {
         const today = new Date();
-
         setCurrentWeekStart(getMonday(today));
-
         const dayIndex = today.getDay() - 1;
-
         setCurrentDayIndex(dayIndex >= 0 && dayIndex < 4 ? dayIndex : 0);
     };
 
@@ -747,17 +1024,16 @@ useEffect(() => {
                                     <option value="">Keine Räume verfügbar</option>
                                 ) : (
                                     rooms
-                                    .filter(room => room.is_visible === 1)
-                                    .map((room) => (
-                                        <option key={room.room_id} value={room.room_id}>{room.room_name}</option>
-                                    ))
+                                        .filter(room => room.is_visible === 1)
+                                        .map((room) => (
+                                            <option key={room.room_id} value={room.room_id}>{room.room_name}</option>
+                                        ))
                                 )}
                             </select>
 
-                            {/* Booking List Button - nur für User */}
                             {(role === 'user' || role === 'admin') && (
                                 <button
-                                    onClick={handleOpenBookingList} // NEU: handleOpenBookingList verwenden
+                                    onClick={handleOpenBookingList}
                                     className="rounded-xl border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors flex items-center gap-1.5"
                                     aria-label="Meine Buchungen anzeigen"
                                 >
@@ -770,8 +1046,7 @@ useEffect(() => {
                             )}
                         </div>
 
-                        {/*Desktop Navigation Structure*/}
-                        <div className=" hidden md:flex items-center gap-3">
+                        <div className="hidden md:flex items-center gap-3">
                             <button
                                 onClick={goToPreviousWeek}
                                 className="rounded-lg bg-white border border-[#0f692b] px-3 py-1.5 text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors"
@@ -797,7 +1072,6 @@ useEffect(() => {
                         </div>
                     </div>
 
-                    {/*Mobile Navigation Structure*/}
                     <div className="flex md:hidden items-center gap-1.5 w-full pb-2">
                         <button
                             onClick={goToPreviousDay}
@@ -830,7 +1104,6 @@ useEffect(() => {
                         </button>
                     </div>
 
-                    {/*Desktop Calendar Structure*/}
                     <div className="hidden md:block rounded-2xl bg-white px-5 pb-6 pt-5">
                         <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-x-2">
                             <div className="w-12"></div>
@@ -869,13 +1142,10 @@ useEffect(() => {
 
                                         if (reserved) {
                                             if (slot?.timeslot_status === 3) {
-                                                // gesperrt durch Admin
                                                 classNames.push("bg-gray-300 text-gray-800");
                                             } else if (slot?.booking_status === 0) {
-                                                // pending
                                                 classNames.push("bg-orange-200 text-orange-900");
                                             } else if (slot?.booking_status === 1) {
-                                                // bestätigt
                                                 classNames.push("bg-green-200 text-green-900");
                                             } else {
                                                 classNames.push("bg-gray-100");
@@ -895,9 +1165,7 @@ useEffect(() => {
                                             >
                                                 {start && slot && (
                                                     <div className="absolute inset-x-1 top-1 flex flex-col items-center text-[10px] font-semibold">
-                                                        {/* Username anzeigen */}
                                                         <span>{slot.username || "Belegt"}</span>
-                                                        {/* optional Text je nach Status */}
                                                         {slot.timeslot_status === 3 && (
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
@@ -918,7 +1186,6 @@ useEffect(() => {
                         </div>
                     </div>
 
-                    {/* Mobile Daily View */}
                     <div className="md:hidden rounded-xl bg-white p-1 max-h-[80vh] overflow-y-auto">
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
@@ -934,8 +1201,6 @@ useEffect(() => {
                             </div>
 
                             <div className="flex-1">
-
-
                                 <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
                                         const slot = getTimeslotForCell(currentDayIndex, hour);
@@ -987,7 +1252,6 @@ useEffect(() => {
                                             </div>
                                         );
                                     })}
-
                                 </div>
                             </div>
                         </div>
@@ -1012,8 +1276,6 @@ useEffect(() => {
                         <div className="flex items-center justify-center w-full h-full">
                             <span className="text-3xl font-bold text-green-700">➜</span>
                         </div>
-
-
                     ) : (
                         <>
                             <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full mb-1" />
@@ -1036,9 +1298,6 @@ useEffect(() => {
                     }`}
             >
                 <div className="flex flex-col h-full p-4">
-
-
-
                     <h2 className="text-lg font-semibold text-[#0f692b] mb-4">Kalenderverwaltung</h2>
                     <button onClick={() => {
                         handleOpenRequestsPopup();
@@ -1054,15 +1313,12 @@ useEffect(() => {
                         className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
                         Tag/Zeitslots sperren
                     </button>
-
                 </div>
             </div>
 
-            {/* Booking Popup */}
             {openBooking && (role === 'user' || role === 'admin') && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
-                        {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Raum buchen</h2>
                             <button
@@ -1074,9 +1330,7 @@ useEffect(() => {
                             </button>
                         </div>
 
-                        {/* Form Content */}
                         <div className="px-5 py-6 space-y-4">
-                            {/* Raum dropdown */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Raum
@@ -1094,7 +1348,6 @@ useEffect(() => {
                                 </select>
                             </div>
 
-                            {/* Datum input */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Datum
@@ -1107,7 +1360,6 @@ useEffect(() => {
                                 />
                             </div>
 
-                            {/* Von / Bis time dropdowns */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -1146,14 +1398,119 @@ useEffect(() => {
                                 </div>
                             </div>
 
-                            {/* Time Error message */}
                             {timeError && (
                                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                                     {timeError}
                                 </div>
                             )}
 
-                            {/* Grund textarea */}
+                            <div className="space-y-3 pt-2 border-t border-gray-200">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="recurring-booking"
+                                        checked={isRecurring}
+                                        onChange={(e) => {
+                                            setIsRecurring(e.target.checked);
+                                            if (!e.target.checked) {
+                                                setFrequency('daily');
+                                                setTwoYears(false);
+                                                setShowUntilDate(false);
+                                                setUntilDate('');
+                                            }
+                                        }}
+                                        className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                    />
+                                    <label htmlFor="recurring-booking" className="text-sm font-medium text-gray-700">
+                                        Wiederkehrend buchen
+                                    </label>
+                                </div>
+
+                                {isRecurring && (
+                                    <div className="pl-7 space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Wiederholung
+                                            </label>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFrequency('daily')}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'daily'
+                                                        ? 'bg-[#0f692b] text-white'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                                >
+                                                    Täglich
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFrequency('weekly')}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'weekly'
+                                                        ? 'bg-[#0f692b] text-white'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                                >
+                                                    Wöchentlich
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="two-years"
+                                                    checked={twoYears}
+                                                    onChange={(e) => {
+                                                        setTwoYears(e.target.checked);
+                                                        if (e.target.checked) {
+                                                            setShowUntilDate(false);
+                                                            setUntilDate('');
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                                />
+                                                <label htmlFor="two-years" className="text-sm font-medium text-gray-700">
+                                                    {RECURRING_BOOKING_MAX_YEARS} Jahre
+                                                </label>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="show-until-date"
+                                                    checked={showUntilDate}
+                                                    onChange={(e) => {
+                                                        setShowUntilDate(e.target.checked);
+                                                        if (e.target.checked) {
+                                                            setTwoYears(false);
+                                                        }
+                                                    }}
+                                                    className="w-5 h-5 accent-[#0f692b] cursor-pointer"
+                                                />
+                                                <label htmlFor="show-until-date" className="text-sm font-medium text-gray-700">
+                                                    Bis
+                                                </label>
+                                            </div>
+
+                                            {showUntilDate && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                        Enddatum
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        value={untilDate}
+                                                        onChange={(e) => setUntilDate(e.target.value)}
+                                                        min={selectedDate || ''}
+                                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Grund
@@ -1170,7 +1527,6 @@ useEffect(() => {
                                 />
                             </div>
 
-                            {/* Reason Error message */}
                             {reasonError && (
                                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                                     {reasonError}
@@ -1178,7 +1534,6 @@ useEffect(() => {
                             )}
                         </div>
 
-                        {/* Footer Buttons */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
                                 onClick={() => setOpenBooking(false)}
@@ -1197,10 +1552,9 @@ useEffect(() => {
                 </div>
             )}
 
-            {openBookingList && (role === 'admin' || role === 'user') && ( //liste von Buchungen für admin wird jetzt gezeigt
+            {openBookingList && (role === 'admin' || role === 'user') && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
-                        {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Meine Buchungen</h2>
                             <button
@@ -1212,82 +1566,111 @@ useEffect(() => {
                             </button>
                         </div>
 
-                        {/* Bookings List */}
                         <div className="flex-1 overflow-y-auto px-5 py-4">
                             {isLoadingUserBookings ? (
                                 <div className="text-center py-8 text-gray-500">
                                     Lade Buchungen...
                                 </div>
-                            ) : userBookings.length === 0 ? (
+                            ) : groupedUserBookings.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500">
                                     Sie haben noch keine Buchungen.
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {userBookings.map((booking) => (
+                                    {groupedUserBookings.map((group) => (
                                         <div
-                                            key={booking.booking_id}
+                                            key={group.grouped_id}
                                             className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <span className="font-semibold text-lg text-gray-800">
-                                                            {booking.room_name}
+                                                            {group.room_name}
                                                         </span>
-                                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBookingStatusColor(booking.booking_status)}`}>
-                                                            {getBookingStatusText(booking.booking_status)}
+                                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBookingStatusColor(group.booking_status)}`}>
+                                                            {getBookingStatusText(group.booking_status)}
                                                         </span>
+                                                        {group.is_recurring && (
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                                                                    Wiederkehrend
+                                                                </span>
+                                                                {group.frequency && (
+                                                                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                                                                        {group.frequency === 'daily' ? 'Täglich' : 'Wöchentlich'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                                         <div>
-                                                            <div className="text-sm font-medium text-gray-500">Datum</div>
+                                                            <div className="text-sm font-medium text-gray-500">Zeitraum</div>
                                                             <div className="text-sm text-gray-800">
-                                                                {new Date(booking.slot_date).toLocaleDateString('de-DE', {
-                                                                    weekday: 'long',
-                                                                    day: '2-digit',
-                                                                    month: '2-digit',
-                                                                    year: 'numeric'
-                                                                })}
-                                                            </div>
+                                                                {group.bookings_count === 1 ? (
+                                                                    parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                        weekday: 'long',
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })
+                                                                ) : (
+                                                                    `${parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })} - ${parseISODateAsLocalDate(group.end_date).toLocaleDateString('de-DE', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })}`
+                                                                )}</div>
                                                         </div>
                                                         <div>
                                                             <div className="text-sm font-medium text-gray-500">Zeit</div>
                                                             <div className="text-sm text-gray-800">
-                                                                {formatTimeForDisplay(booking.start_time)} - {formatTimeForDisplay(booking.end_time)} Uhr
+                                                                {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                             </div>
                                                         </div>
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-500">Buchungs-ID</div>
-                                                            <div className="text-sm text-gray-800">#{booking.booking_id}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-500">Raum-ID</div>
-                                                            <div className="text-sm text-gray-800">{booking.room_id}</div>
-                                                        </div>
+
+
                                                     </div>
 
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Grund</div>
                                                         <div className="text-sm text-gray-800 mt-1 p-3 bg-gray-50 rounded">
-                                                            {booking.reason}
+                                                            {group.reason}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {booking.booking_status === 0 && (
+                                                <div className="flex flex-col gap-2 ml-4">
+                                                    {group.is_recurring && (
+                                                        <button
+                                                            onClick={() => handleManageSeries(group)}
+                                                            className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200 transition-colors flex items-center gap-1"
+                                                            aria-label="Serie verwalten"
+                                                            title="Serie verwalten"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            Enddatum setzen
+                                                        </button>
+                                                    )}
                                                     <button
-                                                        onClick={() => handleDeleteBooking(booking.booking_id)}
-                                                        className="ml-4 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                                        onClick={() => handleDeleteBooking(group)}
+                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
                                                         aria-label="Buchung löschen"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                         </svg>
-                                                        Löschen
+                                                        {group.is_recurring ? 'Alle Termine löschen' : 'Löschen'}
                                                     </button>
-                                                )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -1295,20 +1678,18 @@ useEffect(() => {
                             )}
                         </div>
 
-                        {/* Footer */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl border-t border-gray-200">
                             <div className="text-sm text-gray-600 text-center">
-                                Gesamt: {userBookings.length} Buchung{userBookings.length !== 1 ? 'en' : ''}
+                                Gesamt: {groupedUserBookings.length} Buchungen
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Requests Popup */}
             {showRequestsPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md min-h-[600px] max-h-[90vh] flex flex-col">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl min-h-[600px] max-h-[90vh] flex flex-col">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Anfragen verwalten</h2>
                             <button
@@ -1324,67 +1705,100 @@ useEffect(() => {
                             <div className="flex-1 flex items-center justify-center">
                                 <div className="text-gray-500">Lade Anfragen...</div>
                             </div>
-                        ) : adminRequests.length === 0 ? (
+                        ) : groupedAdminRequests.length === 0 ? (
                             <div className="flex-1 flex items-center justify-center">
                                 <div className="text-gray-500">Keine ausstehenden Anfragen</div>
                             </div>
                         ) : (
                             <div className="space-y-4 p-6 overflow-y-auto pr-2">
-                                {adminRequests.map((request) => (
+                                {groupedAdminRequests.map((group) => (
                                     <div
-                                        key={request.booking_id}
+                                        key={group.grouped_id}
                                         className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
                                     >
                                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <span className="font-semibold text-lg text-gray-800">
-                                                        {request.room_name}
+                                                        {group.room_name}
                                                     </span>
                                                     <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
                                                         Ausstehend
                                                     </span>
+                                                    {group.is_recurring && (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                                                                Wiederkehrend
+                                                            </span>
+                                                            {group.frequency && (
+                                                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                                                                    {group.frequency === 'daily' ? 'Täglich' : 'Wöchentlich'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Benutzer</div>
-                                                        <div className="text-sm text-gray-800">{request.username}</div>
+                                                        <div className="text-sm text-gray-800">
+                                                            {/* Wir müssen den Username aus den adminRequests holen */}
+                                                            {adminRequests.find(r => r.user_id === group.user_id)?.username || `ID: ${group.user_id}`}
+                                                        </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-medium text-gray-500">Datum</div>
+                                                        <div className="text-sm font-medium text-gray-500">Zeitraum</div>
                                                         <div className="text-sm text-gray-800">
-                                                            {new Date(request.slot_date).toLocaleDateString('de-DE', {
-                                                                weekday: 'long',
-                                                                day: '2-digit',
-                                                                month: '2-digit',
-                                                                year: 'numeric'
-                                                            })}
+                                                            {group.bookings_count === 1 ? (
+                                                                parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                    weekday: 'long',
+                                                                    day: '2-digit',
+                                                                    month: '2-digit',
+                                                                    year: 'numeric'
+                                                                })
+                                                            ) : (
+                                                                `${parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                    day: '2-digit',
+                                                                    month: '2-digit',
+                                                                    year: 'numeric'
+                                                                })} - ${parseISODateAsLocalDate(group.end_date).toLocaleDateString('de-DE', {
+                                                                    day: '2-digit',
+                                                                    month: '2-digit',
+                                                                    year: 'numeric'
+                                                                })}`
+                                                            )}
+                                                            {group.until_date && group.until_date !== group.end_date && (
+                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                    Bis: {parseISODateAsLocalDate(group.until_date).toLocaleDateString('de-DE', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Zeit</div>
                                                         <div className="text-sm text-gray-800">
-                                                            {formatTimeForDisplay(request.start_time)} - {formatTimeForDisplay(request.end_time)} Uhr
+                                                            {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                         </div>
                                                     </div>
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-500">Buchungs-ID</div>
-                                                        <div className="text-sm text-gray-800">#{request.booking_id}</div>
-                                                    </div>
+
                                                 </div>
 
                                                 <div>
                                                     <div className="text-sm font-medium text-gray-500">Grund</div>
                                                     <div className="text-sm text-gray-800 mt-1 p-3 bg-gray-50 rounded">
-                                                        {request.reason}
+                                                        {group.reason}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div className="flex flex-row sm:flex-col gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                                                 <button
-                                                    onClick={() => handleAdminAction(request.booking_id, 'accept')}
+                                                    onClick={() => handleAdminAction(group, 'accept')}
                                                     className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold 
                                                  hover:bg-green-200 transition-colors flex items-center gap-2"
                                                     aria-label="Anfrage annehmen"
@@ -1395,7 +1809,7 @@ useEffect(() => {
                                                     Annehmen
                                                 </button>
                                                 <button
-                                                    onClick={() => handleAdminAction(request.booking_id, 'reject')}
+                                                    onClick={() => handleAdminAction(group, 'reject')}
                                                     className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold 
                                                  hover:bg-red-200 transition-colors flex items-center gap-2"
                                                     aria-label="Anfrage ablehnen"
@@ -1414,12 +1828,94 @@ useEffect(() => {
                     </div>
                 </div>
             )}
-            {/* Block Popup */}
+
+            {showManageSeriesPopup && selectedSeries && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Buchungen vorzeitig beenden</h2>
+                            <button
+                                onClick={() => setShowManageSeriesPopup(false)}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                aria-label="Schließen"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-6 space-y-4">
+                            <div className=" border rounded-lg p-4">
+                                <h3 className="font-semibold text-lg mb-2">{selectedSeries.room_name}</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-sm ">
+                                        {selectedSeries.frequency === 'daily' ? 'Tägliche' : 'Wöchentliche'} Buchung • Start: {parseISODateAsLocalDate(selectedSeries.start_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 " fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-sm">Zeit: {formatTimeForDisplay(selectedSeries.start_time)} - {formatTimeForDisplay(selectedSeries.end_time)} Uhr</span>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-gray-200 my-2"></div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Routine Buchungen beenden am:
+                                </label>
+                                <input
+                                    type="date"
+                                    value={newEndDate}
+                                    onChange={(e) => setNewEndDate(e.target.value)}
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    min={selectedSeries.start_date}
+                                    max={selectedSeries.until_date || selectedSeries.end_date}
+                                />
+                            </div>
+
+                            <div className="border-t border-gray-200 my-2"></div>
+
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <div className="flex items-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm text-yellow-800 font-medium">Achtung:</p>
+                                        <p className="text-sm text-yellow-700 mt-1">
+                                            Bereits gebuchte Termine nach dem gewählten Enddatum werden dauerhaft gelöscht.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowManageSeriesPopup(false)}
+                                className="px-6 py-2.5 rounded-lg bg-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-400 transition-colors"
+                            >
+                                Abbrechen
+                            </button>
+                            <button
+                                onClick={handleUpdateSeries}
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                            >
+                                Buchungen vorzeitig beenden
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showBlockPopup && (
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
-
-                        {/* Header */}
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Tage / Zeitslots sperren</h2>
                             <button
@@ -1431,10 +1927,7 @@ useEffect(() => {
                             </button>
                         </div>
 
-                        {/* Content */}
                         <div className="px-5 py-6 space-y-4 overflow-y-auto">
-
-                            {/* Raum */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Raum
@@ -1453,7 +1946,6 @@ useEffect(() => {
                                 </select>
                             </div>
 
-                            {/* Datum */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Datum
@@ -1467,7 +1959,6 @@ useEffect(() => {
                                 />
                             </div>
 
-                            {/* Ganzer Tag Checkbox */}
                             <div className="flex items-center gap-3">
                                 <input
                                     type="checkbox"
@@ -1481,9 +1972,8 @@ useEffect(() => {
                                 </label>
                             </div>
 
-                            {/* Von / Bis – nur sichtbar wenn nicht ganzer Tag */}
                             {!blockAllDay && (
-                                <div className="grid grid-cols-1 sm:gridcols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                             Von
@@ -1517,7 +2007,6 @@ useEffect(() => {
                                     </div>
                                 </div>
                             )}
-
                         </div>
 
                         {/* Footer */}
@@ -1530,6 +2019,7 @@ useEffect(() => {
                                 if(rooms.length > 0){
                                     setBlockRoomId(rooms[0].room_id);
                                 }
+                                setShowBlockPopup(false);
                             }}
                             className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-300 transition-colors'> Abbrechen
                             </button>
