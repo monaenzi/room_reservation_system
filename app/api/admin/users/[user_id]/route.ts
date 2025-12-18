@@ -12,6 +12,8 @@ const pool = mariadb.createPool({
   connectionLimit: 5,
 });
 
+const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || "Raum123!";
+
 /* type RouteParams = {
     params: {
         user_id?: string;
@@ -39,10 +41,10 @@ export async function PUT(
       );
     }
 
-    const { first_name, last_name, email, phone_number, role, password } =
+    const { first_name, last_name, email, phone_number, role, password, reset_password } =
       await req.json();
 
-    if (!first_name && !last_name && !email && !phone_number && !role && !password) {
+    if (!first_name && !last_name && !email && !phone_number && !role && !password && !reset_password) {
       return NextResponse.json(
         { message: "Mindestens ein Feld muss angegeben werden." },
         { status: 400 }
@@ -95,7 +97,12 @@ export async function PUT(
       updates.push("role_id = ?");
       values.push(role_id);
     }
-    if (password) {
+    if (reset_password) {
+      const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 12);
+      updates.push("password_hash = ?");
+      values.push(hashedPassword);
+      updates.push("first_login = 0");
+    } else if (password) {
       const hashedPassword = await bcrypt.hash(password, 12);
       updates.push("password_hash = ?");
       values.push(hashedPassword);
