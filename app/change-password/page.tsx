@@ -72,8 +72,7 @@ export default function ChangePasswordPage() {
   }
 
   return (
-<main className="relative mt-24 flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80">
-      
+    <main className="relative mt-24 flex min-h-[calc(100vh-80px)] items-center justify-center bg-black/80">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <img
           src="/pictures/picture2.jpeg"
@@ -99,8 +98,7 @@ export default function ChangePasswordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-            </label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700"></label>
             <input
               type="email"
               required
@@ -113,8 +111,7 @@ export default function ChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-            </label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700"></label>
             <input
               type="password"
               required
@@ -126,8 +123,7 @@ export default function ChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-            </label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700"></label>
             <input
               type="password"
               required
@@ -139,8 +135,7 @@ export default function ChangePasswordPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-            </label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700"></label>
             <input
               type="password"
               required
@@ -152,12 +147,8 @@ export default function ChangePasswordPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-center text-sm text-red-600">{error}</p>
-          )}
-          {success && !error && (
-            <p className="text-center text-sm text-green-700">{success}</p>
-          )}
+          {error && <p className="text-center text-sm text-red-600">{error}</p>}
+          {success && !error && <p className="text-center text-sm text-green-700">{success}</p>}
 
           <div className="pt-2 text-center">
             <button

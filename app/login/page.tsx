@@ -67,6 +67,7 @@ export default function LoginPage() {
             data
           );
         }
+        localStorage.setItem("lastActivityTime", Date.now().toString());
       }
 
       if (mustChangePassword) {

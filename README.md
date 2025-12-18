@@ -26,6 +26,25 @@ A simple and modern **room reservation web application** built with **Next.js**.
 
 ---
 
+##  Authentication & Middleware Notice
+
+The current middleware used for authentication and cookie handling
+works **only with Next.js 16**.
+
+Starting with **Next.js 17+**, changes to the Edge Runtime prevent
+reliable cookie setting inside middleware.
+
+**Required Migration**
+For Next.js 17+, the authentication and cookie logic must be moved to
+a **proxy-based solution** (e.g. API Routes or an external backend),
+where cookies are set server-side.
+
+The middleware should then only be used for:
+- routing
+- access control
+- redirects
+
+
 ## Project Structure
 
 ```
