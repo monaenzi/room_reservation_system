@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 
-// KONFIGURATION - HIER KANNST DU DIE DAUER ÄNDERN
-const RECURRING_BOOKING_MAX_YEARS = 2; 
+const RECURRING_BOOKING_MAX_YEARS = 2;
 
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
@@ -17,6 +16,7 @@ export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
   const action = req.nextUrl.searchParams.get("action");
   const user_id = req.nextUrl.searchParams.get("user_id");
+  const pattern_id = req.nextUrl.searchParams.get("pattern_id");
 
   let conn: mariadb.PoolConnection | undefined;
 
@@ -32,15 +32,20 @@ export async function GET(req: NextRequest) {
           b.timeslot_id,
           b.reason,
           b.booking_status,
+          b.is_recurring,
+          b.pattern_id,
           t.room_id,
           DATE_FORMAT(t.slot_date, '%Y-%m-%d') AS slot_date,
           t.start_time,
           t.end_time,
           t.timeslot_status,
-          r.room_name
+          r.room_name,
+          rp.end_date as until_date,
+          rp.frequency
         FROM booking b
         JOIN timeslot t ON b.timeslot_id = t.timeslot_id
         JOIN room r ON t.room_id = r.room_id
+        LEFT JOIN recurring_pattern rp ON b.pattern_id = rp.pattern_id
         WHERE b.user_id = ?
         ORDER BY t.slot_date DESC, t.start_time DESC
       `,
@@ -57,17 +62,22 @@ export async function GET(req: NextRequest) {
           b.timeslot_id,
           b.reason,
           b.booking_status,
+          b.is_recurring,
+          b.pattern_id,
           t.room_id,
           DATE_FORMAT(t.slot_date, '%Y-%m-%d') AS slot_date,
           t.start_time,
           t.end_time,
           t.timeslot_status,
           u.username,
-          r.room_name
+          r.room_name,
+          rp.end_date as until_date,
+          rp.frequency
         FROM booking b
         JOIN timeslot t ON b.timeslot_id = t.timeslot_id
         JOIN users u ON b.user_id = u.user_id
         JOIN room r ON t.room_id = r.room_id
+        LEFT JOIN recurring_pattern rp ON b.pattern_id = rp.pattern_id
         WHERE b.booking_status = 0
         ORDER BY t.slot_date, t.start_time
       `);
@@ -119,7 +129,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    console.log("DEBUG POST /api/calendar body:", body);
 
     const { 
       user_id, 
@@ -129,10 +138,10 @@ export async function POST(req: NextRequest) {
       end_time, 
       reason,
       is_recurring = false,
+      frequency = 'daily',
       until_date = null
     } = body;
 
-    // Grundlegende Validierung
     if (!user_id || !room_id || !slot_date || !start_time || !end_time || !reason) {
       return NextResponse.json(
         { message: "Alle Felder sind erforderlich." },
@@ -140,7 +149,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validierung für wiederkehrende Buchungen
     if (is_recurring && !until_date) {
       return NextResponse.json(
         { message: "Bei wiederkehrenden Buchungen muss ein Enddatum angegeben werden." },
@@ -163,7 +171,6 @@ export async function POST(req: NextRequest) {
         ? slot_date.split("T")[0]
         : slot_date;
 
-    // Zeitvalidierung
     const canBook = await conn.query(
       `
       SELECT 
@@ -179,7 +186,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verfallene Buchungen aktualisieren
     await conn.query(
       `
       UPDATE booking b
@@ -190,20 +196,25 @@ export async function POST(req: NextRequest) {
     `
     );
 
-    // Wiederkehrende Buchungslogik
     if (is_recurring) {
-      // Alle Termine für wiederkehrende Buchung generieren
+      const patternResult: any = await conn.query(
+        "INSERT INTO recurring_pattern (frequency, start_date, end_date, until_date) VALUES (?, ?, ?, ?)",
+        [frequency, normalizedDate, until_date, until_date]
+      );
+
+      const pattern_id = Number(patternResult.insertId);
+
       const generatedDates = generateRecurringDates(
         normalizedDate,
         until_date,
-        RECURRING_BOOKING_MAX_YEARS // Übergib die maximale Dauer
+        frequency,
+        RECURRING_BOOKING_MAX_YEARS
       );
 
       const bookings = [];
       let successfulBookings = 0;
 
       for (const date of generatedDates) {
-        // Prüfen ob Slot bereits belegt ist
         const existing = await conn.query(
           `SELECT * FROM timeslot 
            WHERE room_id = ? 
@@ -215,12 +226,10 @@ export async function POST(req: NextRequest) {
         );
 
         if (existing.length > 0) {
-          // Wenn ein Termin belegt ist, überspringen wir nur diesen
           continue;
         }
 
         try {
-          // Timeslot erstellen
           const timeslotResult: any = await conn.query(
             "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
             [room_id, date, start_time, end_time]
@@ -228,10 +237,9 @@ export async function POST(req: NextRequest) {
 
           const timeslot_id = Number(timeslotResult.insertId);
           
-          // Booking erstellen
           const bookingResult: any = await conn.query(
-            "INSERT INTO booking (user_id, timeslot_id, reason, booking_status, is_recurring) VALUES (?, ?, ?, ?, ?)",
-            [user_id, timeslot_id, reason, bookingStatus, 1]
+            "INSERT INTO booking (user_id, timeslot_id, reason, booking_status, is_recurring, pattern_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [user_id, timeslot_id, reason, bookingStatus, 1, pattern_id]
           );
 
           successfulBookings++;
@@ -242,11 +250,9 @@ export async function POST(req: NextRequest) {
           });
         } catch (error) {
           console.error(`Fehler beim Erstellen der Buchung für ${date}:`, error);
-          // Weiter mit nächstem Datum
         }
       }
 
-      // Convert BigInt to Number for JSON serialization
       const safeBookings = bookings.map(booking => ({
         ...booking,
         timeslot_id: Number(booking.timeslot_id),
@@ -255,17 +261,18 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          message: `${successfulBookings} wiederkehrende Buchung(en) erfolgreich erstellt.`,
+          message: "Wiederkehrende Buchung erfolgreich erstellt.",
           bookings_count: successfulBookings,
           is_recurring: true,
+          pattern_id: pattern_id,
           booking_status: bookingStatus,
+          frequency: frequency,
           bookings: safeBookings
         },
         { status: 201 }
       );
     }
 
-    // Normale Buchung (nicht wiederkehrend)
     const existing = await conn.query(
       `SELECT * FROM timeslot 
        WHERE room_id = ? 
@@ -302,8 +309,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: isAdmin
-          ? "Timeslot erfolgreich erstellt und sofort bestätigt (Admin)."
-          : "Timeslot erfolgreich erstellt und zur Bestätigung vorgelegt.",
+          ? "Buchung erfolgreich erstellt und sofort bestätigt (Admin)."
+          : "Buchung erfolgreich erstellt und zur Bestätigung vorgelegt.",
         timeslot_id: Number(timeslot_id),
         booking_id: Number(booking_id),
         booking_status: bookingStatus,
@@ -319,13 +326,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Hilfsfunktion zur Generierung wiederkehrender Daten (täglich)
-function generateRecurringDates(startDate: string, untilDate: string, maxYears: number): string[] {
+function generateRecurringDates(startDate: string, untilDate: string, frequency: 'daily' | 'weekly', maxYears: number): string[] {
   const dates: string[] = [];
   const start = new Date(startDate);
   const until = new Date(untilDate);
   
-  // Maximal X Jahre in die Zukunft basierend auf der Konfiguration
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + maxYears);
   const effectiveUntil = until < maxDate ? until : maxDate;
@@ -334,7 +339,12 @@ function generateRecurringDates(startDate: string, untilDate: string, maxYears: 
 
   while (currentDate <= effectiveUntil) {
     dates.push(currentDate.toISOString().split('T')[0]);
-    currentDate.setDate(currentDate.getDate() + 1);
+    
+    if (frequency === 'daily') {
+      currentDate.setDate(currentDate.getDate() + 1);
+    } else {
+      currentDate.setDate(currentDate.getDate() + 7);
+    }
   }
 
   return dates;
@@ -344,11 +354,11 @@ export async function PUT(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 
   try {
-    const { booking_id, action } = await req.json();
+    const { booking_id, action, pattern_id, end_date } = await req.json();
 
-    if (!booking_id || !action) {
+    if (!booking_id && !pattern_id) {
       return NextResponse.json(
-        { message: "booking_id und action sind erforderlich." },
+        { message: "booking_id oder pattern_id und action sind erforderlich." },
         { status: 400 }
       );
     }
@@ -366,68 +376,159 @@ export async function PUT(req: NextRequest) {
     );
 
     if (action === "accept") {
-      const bookingTime = await conn.query(
-        `
-        SELECT 
-          TIMESTAMP(t.slot_date, t.start_time) AS booking_start
-        FROM booking b
-        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
-        WHERE b.booking_id = ?
-        LIMIT 1
-      `,
-        [booking_id]
-      );
-
-      if (!bookingTime || bookingTime.length === 0) {
-        return NextResponse.json(
-          { message: "Buchung nicht gefunden." },
-          { status: 404 }
+      if (pattern_id) {
+        const bookingTime = await conn.query(
+          `
+          SELECT 
+            MIN(TIMESTAMP(t.slot_date, t.start_time)) AS earliest_start
+          FROM booking b
+          JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+          WHERE b.pattern_id = ?
+            AND b.booking_status = 0
+          LIMIT 1
+        `,
+          [pattern_id]
         );
-      }
 
-      const bookingStart = new Date(bookingTime[0].booking_start as any);
-      if (bookingStart.getTime() < Date.now()) {
-        return NextResponse.json(
-          { message: "Man kann keine Buchung akzeptieren, die in der Vergangenheit liegt." },
-          { status: 400 }
+        if (!bookingTime || bookingTime.length === 0) {
+          return NextResponse.json(
+            { message: "Keine ausstehenden Buchungen für diese Serie gefunden." },
+            { status: 404 }
+          );
+        }
+
+        const earliestStart = new Date(bookingTime[0].earliest_start as any);
+        if (earliestStart.getTime() < Date.now()) {
+          return NextResponse.json(
+            { message: "Man kann keine Buchungen akzeptieren, die in der Vergangenheit liegen." },
+            { status: 400 }
+          );
+        }
+
+        await conn.query(
+          `
+          UPDATE booking b
+          JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+          SET b.booking_status = 1, t.timeslot_status = 2
+          WHERE b.pattern_id = ?
+            AND b.booking_status = 0
+        `,
+          [pattern_id]
         );
+
+        return NextResponse.json({
+          message: "Serie erfolgreich angenommen.",
+          pattern_id: Number(pattern_id),
+        });
+      } else {
+        const bookingTime = await conn.query(
+          `
+          SELECT 
+            TIMESTAMP(t.slot_date, t.start_time) AS booking_start
+          FROM booking b
+          JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+          WHERE b.booking_id = ?
+          LIMIT 1
+        `,
+          [booking_id]
+        );
+
+        if (!bookingTime || bookingTime.length === 0) {
+          return NextResponse.json(
+            { message: "Buchung nicht gefunden." },
+            { status: 404 }
+          );
+        }
+
+        const bookingStart = new Date(bookingTime[0].booking_start as any);
+        if (bookingStart.getTime() < Date.now()) {
+          return NextResponse.json(
+            { message: "Man kann keine Buchung akzeptieren, die in der Vergangenheit liegt." },
+            { status: 400 }
+          );
+        }
+
+        await conn.query(
+          `
+          UPDATE booking b
+          JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+          SET b.booking_status = 1, t.timeslot_status = 2
+          WHERE b.booking_id = ?
+        `,
+          [booking_id]
+        );
+
+        return NextResponse.json({
+          message: "Buchung erfolgreich angenommen.",
+          booking_id: Number(booking_id),
+        });
       }
-
-      await conn.query(
-        `
-        UPDATE booking b
-        JOIN timeslot t ON b.timeslot_id = t.timeslot_id
-        SET b.booking_status = 1, t.timeslot_status = 2
-        WHERE b.booking_id = ?
-      `,
-        [booking_id]
-      );
-
-      return NextResponse.json({
-        message: "Buchung akzeptiert.",
-        booking_id: Number(booking_id),
-      });
     } else if (action === "reject") {
-      const bookingInfo = await conn.query(
-        `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
-        [booking_id]
+      if (pattern_id) {
+        const bookingInfo = await conn.query(
+          `SELECT b.timeslot_id FROM booking b WHERE b.pattern_id = ? AND b.booking_status = 0`,
+          [pattern_id]
+        );
+
+        if (bookingInfo.length === 0) {
+          return NextResponse.json(
+            { message: "Keine ausstehenden Buchungen für diese Serie gefunden." },
+            { status: 404 }
+          );
+        }
+
+        for (const row of bookingInfo) {
+          await conn.query("DELETE FROM booking WHERE timeslot_id = ?", [row.timeslot_id]);
+          await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [row.timeslot_id]);
+        }
+
+        await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
+
+        return NextResponse.json({
+          message: "Serie erfolgreich abgelehnt.",
+          pattern_id: Number(pattern_id),
+        });
+      } else {
+        const bookingInfo = await conn.query(
+          `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
+          [booking_id]
+        );
+
+        if (bookingInfo.length === 0) {
+          return NextResponse.json(
+            { message: "Buchung nicht gefunden." },
+            { status: 404 }
+          );
+        }
+
+        const timeslot_id = bookingInfo[0].timeslot_id;
+
+        await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
+        await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
+
+        return NextResponse.json({
+          message: "Buchung erfolgreich abgelehnt.",
+          booking_id: Number(booking_id),
+        });
+      }
+    } else if (action === "update_end_date" && pattern_id && end_date) {
+      const updatePattern = await conn.query(
+        "UPDATE recurring_pattern SET end_date = ?, until_date = ? WHERE pattern_id = ?",
+        [end_date, end_date, pattern_id]
       );
 
-      if (bookingInfo.length === 0) {
-        return NextResponse.json(
-          { message: "Buchung nicht gefunden." },
-          { status: 404 }
-        );
-      }
-
-      const timeslot_id = bookingInfo[0].timeslot_id;
-
-      await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
-      await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
+      const deleteBookings = await conn.query(
+        `DELETE b, t FROM booking b
+         JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+         WHERE b.pattern_id = ? 
+           AND t.slot_date > ?`,
+        [pattern_id, end_date]
+      );
 
       return NextResponse.json({
-        message: "Buchung abgelehnt und Timeslot gelöscht.",
-        booking_id: Number(booking_id),
+        message: "Serie erfolgreich aktualisiert.",
+        pattern_id: Number(pattern_id),
+        new_end_date: end_date
       });
     } else {
       return NextResponse.json({ message: "Ungültige Aktion." }, { status: 400 });
@@ -445,34 +546,58 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const booking_id = req.nextUrl.searchParams.get("booking_id");
+    const pattern_id = req.nextUrl.searchParams.get("pattern_id");
 
-    if (!booking_id) {
+    if (!booking_id && !pattern_id) {
       return NextResponse.json(
-        { message: "booking_id ist erforderlich." },
+        { message: "booking_id oder pattern_id ist erforderlich." },
         { status: 400 }
       );
     }
 
     conn = await pool.getConnection();
 
-    const bookingInfo = await conn.query(
-      `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
-      [booking_id]
-    );
+    if (pattern_id) {
+      const bookings = await conn.query(
+        `SELECT b.timeslot_id FROM booking b WHERE b.pattern_id = ?`,
+        [pattern_id]
+      );
 
-    if (bookingInfo.length === 0) {
-      return NextResponse.json({ message: "Buchung nicht gefunden." }, { status: 404 });
+      if (bookings.length === 0) {
+        return NextResponse.json({ message: "Serie nicht gefunden." }, { status: 404 });
+      }
+
+      for (const row of bookings) {
+        await conn.query("DELETE FROM booking WHERE timeslot_id = ?", [row.timeslot_id]);
+        await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [row.timeslot_id]);
+      }
+
+      await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
+
+      return NextResponse.json({
+        message: "Serie erfolgreich gelöscht.",
+        pattern_id: Number(pattern_id),
+      });
+    } else {
+      const bookingInfo = await conn.query(
+        `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
+        [booking_id]
+      );
+
+      if (bookingInfo.length === 0) {
+        return NextResponse.json({ message: "Buchung nicht gefunden." }, { status: 404 });
+      }
+
+      const timeslot_id = bookingInfo[0].timeslot_id;
+
+      await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
+      await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
+
+      return NextResponse.json({
+        message: "Buchung erfolgreich gelöscht.",
+        booking_id: Number(booking_id),
+      });
     }
-
-    const timeslot_id = bookingInfo[0].timeslot_id;
-
-    await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
-    await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
-
-    return NextResponse.json({
-      message: "Buchung und Timeslot gelöscht.",
-      booking_id: Number(booking_id),
-    });
   } catch (err) {
     console.error("Fehler beim Löschen:", err);
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
