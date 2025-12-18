@@ -914,7 +914,13 @@ export default function RoomsPage() {
             const startHour = getHourFromTime(t.start_time);
             const endHour = getHourFromTime(t.end_time);
 
-            return hour >= startHour && hour < endHour;
+            const startMinutes = timeToMinutes(t.start_time);
+            const endMinutes = timeToMinutes(t.end_time);
+
+            const cellStartMinutes = hour * 60;
+            const cellEndMinutes = (hour + 1) * 60 - 1;
+
+            return (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes);
         });
     };
 
@@ -947,8 +953,14 @@ export default function RoomsPage() {
             const startHour = getHourFromTime(t.start_time);
             const endHour = getHourFromTime(t.end_time);
 
-            if (hour >= startHour && hour < endHour) {
-                return t.booking_status === 1;
+            const startMinutes = timeToMinutes(t.start_time);
+            const endMinutes = timeToMinutes(t.end_time);
+
+            const cellStartMinutes = hour * 60;
+            const cellEndMinutes = (hour + 1) * 60 - 1;
+
+            if (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes) {
+                return t.booking_status === 1 || t.timeslot_status === 3;
             }
             return false;
         });
@@ -962,7 +974,10 @@ export default function RoomsPage() {
             if (slotDateStr !== dateStr) return false;
 
             const startHour = getHourFromTime(t.start_time);
-            return hour === startHour;
+            const startMinutes = timeToMinutes(t.start_time);
+
+            return startHour === hour || (startMinutes >= hour * 60 && startMinutes < (hour + 1) * 60);
+
         });
     };
 
