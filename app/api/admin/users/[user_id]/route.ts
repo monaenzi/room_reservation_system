@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 // import { RouteParam } from "next/dist/client/route-params";
 
 const pool = mariadb.createPool({
@@ -13,6 +16,27 @@ const pool = mariadb.createPool({
 });
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || "Raum123!";
+
+function getSmtpConfig() {
+    const host = process.env.SMTP_HOST ?? "smtp.gmail.com";
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const secure = port === 465;
+
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASSWORD;
+
+    if (!user || !pass) {
+        throw new Error("SMTP_USER oder SMTP_PASSWORD fehlen in .env");
+    }
+
+    return {
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: { servername: host },
+    } as const;
+}
 
 /* type RouteParams = {
     params: {
@@ -62,7 +86,7 @@ export async function PUT(
     }
 
     const userExists = await conn.query(
-      "SELECT user_id FROM users WHERE user_id = ? LIMIT 1",
+      "SELECT user_id, email, first_name, last_name FROM users WHERE user_id = ? LIMIT 1",
       [user_id]
     );
 
@@ -72,6 +96,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const currentUser = userExists[0]
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -121,6 +147,84 @@ export async function PUT(
     console.log("Executing query:", query, "with", values);
 
     await conn.query(query, values);
+
+    if (reset_password) {
+      try {
+        const smtp = getSmtpConfig();
+        const transporter = nodemailer.createTransport(smtp);
+        const logoPath = path.join(process.cwd(), "public", "logo.svg");
+        const hasLogo = fs.existsSync(logoPath);
+        const logoBuffer = hasLogo ? fs.readFileSync(logoPath) : null;
+        const recipientEmail = email || currentUser.email;
+        const recipientName = first_name || currentUser.first_name;
+
+        const html = `
+          <!DOCTYPE html>
+          <html lang="de">
+          <head><meta charset="UTF-8" /></head>
+          <body style="font-family: Arial, sans-serif; background:#ffffff; color:#111;">
+            <div style="max-width: 640px; margin: 0 auto; padding: 24px;">
+              <div style="margin-bottom: 16px;">
+                ${hasLogo ? `<img src="cid:kaitlogo" alt="KAIT Logo" style="height:48px;" />` : ""}
+              </div>
+              <h2 style="margin: 0 0 12px;">Passwort zurückgesetzt</h2>
+              <p style="margin: 0 0 12px;">Hallo ${recipientName},</p>
+              <p style="margin: 0 0 12px;">
+                Ein Administrator hat dein Passwort für das KAIT-Raumbuchungssystem zurückgesetzt.
+              </p>
+              <p style="margin: 0 0 12px; background-color: #f3f4f6; padding: 15px; border-radius: 8px; font-weight: bold;">
+                Dein neues Passwort lautet: <span style="color: #15803d;">${DEFAULT_PASSWORD}</span>
+              </p>
+              <p style="margin: 0 0 18px;">
+                Bitte melde dich an und ändere dein Passwort anschließend.
+              </p>
+              <p style="margin: 0;">
+                Mit freundlichen Grüßen,<br/>
+                Dein KAIT Team
+              </p>
+
+              <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e5e5;" />
+
+              <div style="font-size: 12px; color:#444;">
+                <strong>IMPRESSUM</strong><br/><br/>
+                FH JOANNEUM GmbH, University of Applied Sciences<br/>
+                INSTITUTE Software Design and Security<br/>
+                Werk-VI-Straße 46<br/>
+                8605 Kapfenberg, AUSTRIA<br/>
+                T: +43 3862 6542-0<br/>
+                E: <a href="mailto:info@joanneum.at">info@joanneum.at</a><br/><br/>
+                <a href="https://www.fh-joanneum.at/hochschule/organisation/datenschutz/">Data protection FH JOANNEUM</a><br/>
+                No liability is assumed for linked content.
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+
+        await transporter.sendMail({
+              from: process.env.SMTP_FROM ?? process.env.SMTP_USER!,
+              to: [email, recipientEmail],
+              subject: "KAIT-Raumbuchung - Passwort wurde zurückgesetzt",
+              text:
+                  `Dein Passwort wurde zurückgesetzt. Das neue Passwort lautet: ${DEFAULT_PASSWORD}`,
+              html,
+              attachments: hasLogo && logoBuffer
+                  ? [
+                      {
+                          filename: "logo.svg",
+                          content: logoBuffer,
+                          cid: "kaitlogo",
+                          contentType: "image/svg+xml",
+                      },
+                  ]
+                  : [],
+          });
+
+          console.log(`Reset email sent to ${recipientEmail}`);
+        } catch (emailErr) {
+          console.error("Fehler beim Senden der Reset-Email:", emailErr);
+        }
+    }
 
     const updatedUser = await conn.query(
       "SELECT user_id, username, first_name, last_name, email, phone_number, role_id FROM users WHERE user_id = ? LIMIT 1",
