@@ -1,4 +1,17 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+
 export default function Footer() {
+    const pathname = usePathname();
+    
+ // Liste der Pfade, auf denen die Navbar NICHT angezeigt werden soll
+  const disableNavbar = ["/kiosk"];
+ 
+  // Wenn der aktuelle Pfad in der Liste ist, rendern wir nichts (null)
+  if (disableNavbar.includes(pathname)) {
+    return null;}
+
     return (
     <footer className="w-full border-t border-gray-200 bg-white flex justify-center px-4 py-2 pl-7 sm:px-6 sm:py-5 sm:pl-70">
         <div className="mx-auto max-w-3xl w-full px-4 py-8 sm:px-6 sm:px-14">

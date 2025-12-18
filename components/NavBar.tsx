@@ -10,14 +10,29 @@ type Role = "guest" | "user" | "admin";
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 const WARNING_BEFORE_LOGOUT = 2 * 60 * 1000;
 
+// Liste von Seiten/Pfaden, auf denen die Navbar ausgeblendet werden soll
+const HIDDEN_NAVBAR_PATHS = [
+  "/kiosk"
+  // Füge hier weitere Pfade hinzu, die keine Navbar haben sollen
+];
+
 export default function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  
+  // Prüfe, ob die Navbar auf der aktuellen Seite ausgeblendet werden soll
+  const shouldHideNavbar = HIDDEN_NAVBAR_PATHS.includes(pathname);
+  
+  // Wenn Navbar ausgeblendet werden soll, gib nichts zurück
+  if (shouldHideNavbar) {
+    return null;
+  }
+
   const [isOpen, setIsOpen] = useState(false);
   const [role, setRole] = useState<Role>("guest");
   const [username, setUsername] = useState<string>("");
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const router = useRouter();
 
 
   const updateActivity = () => {
