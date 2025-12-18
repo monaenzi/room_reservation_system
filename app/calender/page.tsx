@@ -3,6 +3,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+// KONFIGURATION - HIER KANNST DU DIE DAUER ÄNDERN
+const RECURRING_BOOKING_MAX_YEARS = 2; 
+
 type Role = 'guest' | 'user' | 'admin';
 type Weekday = 'Montag' | 'Dienstag' | 'Mittwoch' | 'Donnerstag' | 'Freitag';
 
@@ -448,9 +451,9 @@ export default function RoomsPage() {
         if (isRecurring) {
             if (twoYears) {
                 const start = new Date(selectedDate || '');
-                const twoYearsLater = new Date(start);
-                twoYearsLater.setFullYear(start.getFullYear() + 2);
-                finalUntilDate = twoYearsLater.toISOString().split('T')[0];
+                const maxDate = new Date(start);
+                maxDate.setFullYear(start.getFullYear() + RECURRING_BOOKING_MAX_YEARS);
+                finalUntilDate = maxDate.toISOString().split('T')[0];
             } else {
                 finalUntilDate = untilDate;
             }
@@ -467,7 +470,8 @@ export default function RoomsPage() {
                 end_time: endTime,
                 reason,
                 is_recurring: isRecurring,
-                until_date: isRecurring ? finalUntilDate : null
+                until_date: isRecurring ? finalUntilDate : null,
+                max_years: RECURRING_BOOKING_MAX_YEARS // NEU: Sende die maximale Dauer mit
             })
         });
 
@@ -1246,7 +1250,7 @@ export default function RoomsPage() {
                                                 className="w-5 h-5 accent-[#0f692b] cursor-pointer"
                                             />
                                             <label htmlFor="two-years" className="text-sm font-medium text-gray-700">
-                                                2 Jahre
+                                                {RECURRING_BOOKING_MAX_YEARS} Jahre
                                             </label>
                                         </div>
 

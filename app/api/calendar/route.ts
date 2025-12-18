@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 
+// KONFIGURATION - HIER KANNST DU DIE DAUER ÄNDERN
+const RECURRING_BOOKING_MAX_YEARS = 2; 
+
 const pool = mariadb.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT ?? 3306),
@@ -192,7 +195,8 @@ export async function POST(req: NextRequest) {
       // Alle Termine für wiederkehrende Buchung generieren
       const generatedDates = generateRecurringDates(
         normalizedDate,
-        until_date
+        until_date,
+        RECURRING_BOOKING_MAX_YEARS // Übergib die maximale Dauer
       );
 
       const bookings = [];
@@ -316,14 +320,14 @@ export async function POST(req: NextRequest) {
 }
 
 // Hilfsfunktion zur Generierung wiederkehrender Daten (täglich)
-function generateRecurringDates(startDate: string, untilDate: string): string[] {
+function generateRecurringDates(startDate: string, untilDate: string, maxYears: number): string[] {
   const dates: string[] = [];
   const start = new Date(startDate);
   const until = new Date(untilDate);
   
-  // Maximal 2 Jahre in die Zukunft
+  // Maximal X Jahre in die Zukunft basierend auf der Konfiguration
   const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() + 2);
+  maxDate.setFullYear(maxDate.getFullYear() + maxYears);
   const effectiveUntil = until < maxDate ? until : maxDate;
 
   let currentDate = new Date(start);
