@@ -195,15 +195,15 @@ function getWeekdayFromDate(dateStr: string): string {
 
 function groupBookings(bookings: UserBooking[]): GroupedBooking[] {
     const groupedMap = new Map<string, GroupedBooking>();
-    
+
     bookings.forEach(booking => {
-        const key = booking.pattern_id 
+        const key = booking.pattern_id
             ? `pattern_${booking.pattern_id}`
             : `${booking.user_id}_${booking.room_id}_${booking.start_time}_${booking.end_time}_${booking.reason}_${booking.parent_booking_id || 'single'}`;
-        
+
         if (!groupedMap.has(key)) {
             const weekday = getWeekdayFromDate(booking.slot_date);
-            
+
             groupedMap.set(key, {
                 grouped_id: key,
                 user_id: booking.user_id,
@@ -227,30 +227,30 @@ function groupBookings(bookings: UserBooking[]): GroupedBooking[] {
             });
         } else {
             const group = groupedMap.get(key)!;
-            
+
             const currentDate = parseISODateAsLocalDate(booking.slot_date);
             const firstDate = parseISODateAsLocalDate(group.first_booking_date);
             const lastDate = parseISODateAsLocalDate(group.last_booking_date);
-            
+
             if (currentDate < firstDate) {
                 group.first_booking_date = booking.slot_date;
                 group.start_date = booking.slot_date;
             }
-            
+
             if (currentDate > lastDate) {
                 group.last_booking_date = booking.slot_date;
                 group.end_date = booking.slot_date;
             }
-            
+
             group.bookings_count += 1;
             group.booking_ids.push(booking.booking_id);
         }
     });
-    
+
     return Array.from(groupedMap.values()).map(group => {
         const startDate = parseISODateAsLocalDate(group.first_booking_date);
         const endDate = parseISODateAsLocalDate(group.last_booking_date);
-        
+
         return {
             ...group,
             start_date: group.first_booking_date,
@@ -261,15 +261,15 @@ function groupBookings(bookings: UserBooking[]): GroupedBooking[] {
 
 function groupAdminRequests(requests: BookingRequest[]): GroupedBooking[] {
     const groupedMap = new Map<string, GroupedBooking>();
-    
+
     requests.forEach(request => {
-        const key = request.pattern_id 
+        const key = request.pattern_id
             ? `pattern_${request.pattern_id}`
             : `${request.user_id}_${request.room_id}_${request.start_time}_${request.end_time}_${request.reason}`;
-        
+
         if (!groupedMap.has(key)) {
             const weekday = getWeekdayFromDate(request.slot_date);
-            
+
             groupedMap.set(key, {
                 grouped_id: key,
                 user_id: request.user_id,
@@ -292,26 +292,26 @@ function groupAdminRequests(requests: BookingRequest[]): GroupedBooking[] {
             });
         } else {
             const group = groupedMap.get(key)!;
-            
+
             const currentDate = parseISODateAsLocalDate(request.slot_date);
             const firstDate = parseISODateAsLocalDate(group.first_booking_date);
             const lastDate = parseISODateAsLocalDate(group.last_booking_date);
-            
+
             if (currentDate < firstDate) {
                 group.first_booking_date = request.slot_date;
                 group.start_date = request.slot_date;
             }
-            
+
             if (currentDate > lastDate) {
                 group.last_booking_date = request.slot_date;
                 group.end_date = request.slot_date;
             }
-            
+
             group.bookings_count += 1;
             group.booking_ids.push(request.booking_id);
         }
     });
-    
+
     return Array.from(groupedMap.values()).map(group => {
         return {
             ...group,
@@ -490,7 +490,7 @@ export default function RoomsPage() {
             if (!res.ok) throw new Error('Fehler beim Laden der Buchungen');
             const data = await res.json();
             setUserBookings(data);
-            
+
             const grouped = groupBookings(data);
             setGroupedUserBookings(grouped);
         } catch (err) {
@@ -546,6 +546,18 @@ export default function RoomsPage() {
 
         let hasError = false;
 
+        // Check für Wochenende
+        const selectedDateObj = new Date(selectedDate || '');
+        const dayOfWeek = selectedDateObj.getDay(); // 0 = Sonntag, 6 = Samstag
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            setTimeError('Buchungen sind nur von Montag bis Freitag möglich.');
+            hasError = true;
+        }
+
+        if (duration < 30) {
+            setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
+            hasError = true;
+        }
         if (duration < 30) {
             setTimeError('Die Buchung muss mindestens 30 Minuten dauern.');
             hasError = true;
@@ -612,7 +624,7 @@ export default function RoomsPage() {
         } else {
             alert('Buchung erfolgreich!');
         }
-        
+
         setOpenBooking(false);
         setIsRecurring(false);
         setFrequency('daily');
@@ -626,55 +638,58 @@ export default function RoomsPage() {
             .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
     };
 
-    const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
-        if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
-            if (!confirm(`Möchten Sie diese gesamte Buchungsserie wirklich löschen?\n\nAlle ${groupedBooking.bookings_count} Termine werden dauerhaft gelöscht.`)) {
-                return;
-            }
-        } else {
-            if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
-                return;
-            }
+const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
+  // HIER ÄNDERN - Bessere Confirm Messages
+  if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
+    // FÜR SERIE: "Alle Termine löschen"
+    if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
+      return;
+    }
+  } else {
+    // FÜR EINZELNE BUCHUNG: Einfach "Buchung löschen"
+    if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
+      return;
+    }
+  }
+
+  try {
+    if (groupedBooking.pattern_id) {
+      const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Fehler beim Löschen');
+      }
+      alert('Buchungen erfolgreich gelöscht!');
+    } else {
+      for (const bookingId of groupedBooking.booking_ids) {
+        const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
+          method: 'DELETE',
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || 'Fehler beim Löschen');
         }
+      }
+      alert('Buchung erfolgreich gelöscht!');
+    }
 
-        try {
-            if (groupedBooking.pattern_id) {
-                const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
-                    method: 'DELETE',
-                });
+    loadUserBookings();
 
-                if (!res.ok) {
-                    const error = await res.json();
-                    throw new Error(error.message || 'Fehler beim Löschen');
-                }
-                alert('Buchungsserie erfolgreich gelöscht!');
-            } else {
-                for (const bookingId of groupedBooking.booking_ids) {
-                    const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
-                        method: 'DELETE',
-                    });
+    if (selectedRoomId) {
+      const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+      const timeslotsData = await timeslotsRes.json();
+      setTimeslots(timeslotsData);
+    }
 
-                    if (!res.ok) {
-                        const error = await res.json();
-                        throw new Error(error.message || 'Fehler beim Löschen');
-                    }
-                }
-                alert('Buchung erfolgreich gelöscht!');
-            }
-
-            loadUserBookings();
-
-            if (selectedRoomId) {
-                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-                const timeslotsData = await timeslotsRes.json();
-                setTimeslots(timeslotsData);
-            }
-
-        } catch (err) {
-            console.error('Fehler beim Löschen:', err);
-            alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
-        }
-    };
+  } catch (err) {
+    console.error('Fehler beim Löschen:', err);
+    alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
+  }
+};
 
     const handleManageSeries = (group: GroupedBooking) => {
         if (!group.is_recurring) return;
@@ -685,7 +700,7 @@ export default function RoomsPage() {
 
     const handleUpdateSeries = async () => {
         if (!selectedSeries || !selectedSeries.pattern_id) return;
-        
+
         if (!newEndDate) {
             alert('Bitte wählen Sie ein Enddatum aus.');
             return;
@@ -693,13 +708,13 @@ export default function RoomsPage() {
 
         const newEndDateObj = new Date(newEndDate);
         const currentEndDateObj = new Date(selectedSeries.until_date || selectedSeries.end_date);
-        
+
         if (newEndDateObj > currentEndDateObj) {
             alert('Das neue Enddatum darf nicht nach dem aktuellen Enddatum liegen.');
             return;
         }
 
-        if (!confirm(`Möchten Sie die Serie wirklich am ${newEndDate} beenden?\n\nBereits gebuchte Termine nach diesem Datum werden dauerhaft gelöscht.`)) {
+        if (!confirm(`Möchten Sie die Buchungen wirklich am ${newEndDate} beenden?\n\nBereits gebuchte Termine nach diesem Datum werden dauerhaft gelöscht.`)) {
             return;
         }
 
@@ -719,7 +734,7 @@ export default function RoomsPage() {
                 throw new Error(error.message || 'Fehler beim Aktualisieren der Serie');
             }
 
-            alert('Serie erfolgreich aktualisiert!');
+            alert('Buchungen erfolgreich aktualisiert!');
             setShowManageSeriesPopup(false);
             loadUserBookings();
 
@@ -789,7 +804,7 @@ export default function RoomsPage() {
             if (!res.ok) throw new Error('Fehler beim Laden der Anfragen');
             const data = await res.json();
             setAdminRequests(data);
-            
+
             const grouped = groupAdminRequests(data);
             setGroupedAdminRequests(grouped);
         } catch (err) {
@@ -1404,8 +1419,8 @@ export default function RoomsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setFrequency('daily')}
-                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'daily' 
-                                                        ? 'bg-[#0f692b] text-white' 
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'daily'
+                                                        ? 'bg-[#0f692b] text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                                 >
                                                     Täglich
@@ -1413,8 +1428,8 @@ export default function RoomsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setFrequency('weekly')}
-                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'weekly' 
-                                                        ? 'bg-[#0f692b] text-white' 
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'weekly'
+                                                        ? 'bg-[#0f692b] text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                                 >
                                                     Wöchentlich
@@ -1573,28 +1588,28 @@ export default function RoomsPage() {
                                                         )}
                                                     </div>
 
-                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-    <div>
-        <div className="text-sm font-medium text-gray-500">Zeitraum</div>
-        <div className="text-sm text-gray-800">
-            {group.bookings_count === 1 ? (
-                parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
-                    weekday: 'long',
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                })
-            ) : (
-                `${parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                })} - ${parseISODateAsLocalDate(group.end_date).toLocaleDateString('de-DE', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                })}`
-            )}</div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-500">Zeitraum</div>
+                                                            <div className="text-sm text-gray-800">
+                                                                {group.bookings_count === 1 ? (
+                                                                    parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                        weekday: 'long',
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })
+                                                                ) : (
+                                                                    `${parseISODateAsLocalDate(group.start_date).toLocaleDateString('de-DE', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })} - ${parseISODateAsLocalDate(group.end_date).toLocaleDateString('de-DE', {
+                                                                        day: '2-digit',
+                                                                        month: '2-digit',
+                                                                        year: 'numeric'
+                                                                    })}`
+                                                                )}</div>
                                                         </div>
                                                         <div>
                                                             <div className="text-sm font-medium text-gray-500">Zeit</div>
@@ -1602,7 +1617,7 @@ export default function RoomsPage() {
                                                                 {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                             </div>
                                                         </div>
-                                                   
+
 
                                                     </div>
 
@@ -1628,16 +1643,16 @@ export default function RoomsPage() {
                                                             Enddatum setzen
                                                         </button>
                                                     )}
-                                                    <button
-                                                        onClick={() => handleDeleteBooking(group)}
-                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
-                                                        aria-label="Buchung löschen"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                        Löschen
-                                                    </button>
+                                          <button
+  onClick={() => handleDeleteBooking(group)}
+  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+  aria-label="Buchung löschen"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+  {group.is_recurring ? 'Alle Termine löschen' : 'Löschen'}
+</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1648,7 +1663,7 @@ export default function RoomsPage() {
 
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl border-t border-gray-200">
                             <div className="text-sm text-gray-600 text-center">
-                                Gesamt: {groupedUserBookings.length} Buchungsgruppe{groupedUserBookings.length !== 1 ? 'n' : ''}
+                                Gesamt: {groupedUserBookings.length} Buchungen
                             </div>
                         </div>
                     </div>
@@ -1707,11 +1722,14 @@ export default function RoomsPage() {
                                                     )}
                                                 </div>
 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-500">Benutzer</div>
-                                                        <div className="text-sm text-gray-800">ID: {group.user_id}</div>
-                                                    </div>
+                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+  <div>
+    <div className="text-sm font-medium text-gray-500">Benutzer</div>
+    <div className="text-sm text-gray-800">
+      {/* Wir müssen den Username aus den adminRequests holen */}
+      {adminRequests.find(r => r.user_id === group.user_id)?.username || `ID: ${group.user_id}`}
+    </div>
+  </div>
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Zeitraum</div>
                                                         <div className="text-sm text-gray-800">
@@ -1750,7 +1768,7 @@ export default function RoomsPage() {
                                                             {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                         </div>
                                                     </div>
-                                                   
+
                                                 </div>
 
                                                 <div>
@@ -1798,7 +1816,7 @@ export default function RoomsPage() {
                 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-                            <h2 className="text-lg font-semibold text-gray-800">Buchungsserie vorzeitig beenden</h2>
+                            <h2 className="text-lg font-semibold text-gray-800">Buchungen vorzeitig beenden</h2>
                             <button
                                 onClick={() => setShowManageSeriesPopup(false)}
                                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
@@ -1831,7 +1849,7 @@ export default function RoomsPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                    Serie beenden am:
+                                    Routine Buchungen beenden am:
                                 </label>
                                 <input
                                     type="date"
@@ -1871,7 +1889,7 @@ export default function RoomsPage() {
                                 onClick={handleUpdateSeries}
                                 className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
-                                Serie vorzeitig beenden
+                                Buchungen vorzeitig beenden
                             </button>
                         </div>
                     </div>

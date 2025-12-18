@@ -338,7 +338,12 @@ function generateRecurringDates(startDate: string, untilDate: string, frequency:
   let currentDate = new Date(start);
 
   while (currentDate <= effectiveUntil) {
-    dates.push(currentDate.toISOString().split('T')[0]);
+    const dayOfWeek = currentDate.getDay(); // 0 = Sonntag, 6 = Samstag
+    
+    // Überspringe Wochenenden (nur Montag-Freitag)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      dates.push(currentDate.toISOString().split('T')[0]);
+    }
     
     if (frequency === 'daily') {
       currentDate.setDate(currentDate.getDate() + 1);
