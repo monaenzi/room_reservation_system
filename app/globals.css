@@ -785,3 +785,24 @@ body {
   color: #22c55e !important;
 }
 
+
+[data-theme="dark"] .fixed.inset-0.bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+[data-theme="dark"] .bg-white.rounded-2xl.shadow-2xl.px-8.py-6 {
+  background-color: #1e2d3d !important;
+  border: 1px solid #2e3b4e !important;
+}
+
+[data-theme="dark"] .text-gray-900 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+[data-theme="dark"] .text-red-600 {
+  color: #ef4444 !important;
+}
