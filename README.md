@@ -26,9 +26,6 @@ A simple and modern **room reservation web application** built with **Next.js**.
 
 ---
 
-
----
-
 ##  Authentication & Middleware Notice
 
 The current middleware used for authentication and cookie handling
