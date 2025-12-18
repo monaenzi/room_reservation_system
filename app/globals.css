@@ -806,3 +806,11 @@ body {
 [data-theme="dark"] .text-red-600 {
   color: #ef4444 !important;
 }
+
+[data-theme="dark"] .bg-purple-100 {
+  background-color: rgba(249, 115, 22, 0.2) !important;
+}
+
+[data-theme="dark"] .text-purple-800 {
+  color: #f97316 !important; 
+}
