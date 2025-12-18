@@ -1328,7 +1328,7 @@ export default function RoomsPage() {
                             </button>
                         </div>
 
-                        <div className="px-5 py-6 space-y-4">
+                        <div className="px-5 py-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                     Raum
