@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 
 const pool = mariadb.createPool({
     host: process.env.DB_HOST,
@@ -11,15 +13,26 @@ const pool = mariadb.createPool({
     connectionLimit: 5,
 });
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-    },
-});
+function getSmtpConfig() {
+    const host = process.env.SMTP_HOST ?? "smtp.gmail.com";
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const secure = port === 465;
+
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASSWORD;
+
+    if (!user || !pass) {
+        throw new Error("SMTP_USER oder SMTP_PASSWORD fehlen in .env");
+    }
+
+    return {
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: { servername: host },
+    } as const;
+}
 
 export async function POST(req: NextRequest) {
     let conn: mariadb.PoolConnection | undefined;
@@ -33,18 +46,11 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
-        try {
-            conn = await pool.getConnection();
-        } catch (err) {
-            console.error("DB-Verbindung fehlgeschlagen:", err);
-            return NextResponse.json(
-                { message: "Verbindung zur Datenbank nicht möglich." },
-                { status: 500 }
-            );
-        }
+
+        conn = await pool.getConnection();
 
         const rows = await conn.query(
-            "SELECT id FROM users WHERE email = ? AND first_name = ? AND last_name = ? LIMIT 1",
+            "SELECT user_id FROM users WHERE email = ? AND first_name = ? AND last_name = ? LIMIT 1",
             [email, first_name, last_name]
         );
 
@@ -55,88 +61,82 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const fixedRecipient = "xxxxx@xxxx.at"; // Hier KAIT e-Mail angeben.
+        const fixedRecipient = "greenkait865@gmail.com";
 
-        try {
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
-                to: [email, fixedRecipient],
-                subject: "KAIT-Raumbuchung - Passwort zurücksetzen",
-                text: "Beispieltext",
-                html: `
-                <!DOCTYPE html>
-                <html lang="de">
-                <head>
-                    <meta charset="UTF-8" />
-                    <title>Passwort zurücksetzen – KAIT</title>
-                </head>
-                <body>
+        const smtp = getSmtpConfig();
+        const transporter = nodemailer.createTransport(smtp);
+        await transporter.verify();
 
-                    <div class="container">
-                        <div class="logo">
-                        <img src="public/logo.svg" alt="KAIT Logo" />
-                        </div>
+        const logoPath = path.join(process.cwd(), "public", "logo.svg");
+        const hasLogo = fs.existsSync(logoPath);
+        const logoBuffer = hasLogo ? fs.readFileSync(logoPath) : null;
 
-                    <h1>Passwort Zurücksetzen - Anfrage erhalten</h1>
+        const html = `
+      <!DOCTYPE html>
+      <html lang="de">
+      <head><meta charset="UTF-8" /></head>
+      <body style="font-family: Arial, sans-serif; background:#ffffff; color:#111;">
+        <div style="max-width: 640px; margin: 0 auto; padding: 24px;">
+          <div style="margin-bottom: 16px;">
+            ${hasLogo ? `<img src="cid:kaitlogo" alt="KAIT Logo" style="height:48px;" />` : ""}
+          </div>
 
-                        <p>Hallo ${first_name},</p>
+          <h2 style="margin: 0 0 12px;">Passwort Zurücksetzen - Anfrage erhalten</h2>
 
-                        <p>
-                            Vielen Dank für deine Anfrage zum Zurücksetzen deines Passwortes.<br>
-                            Deine Anfrage wurde erfolgreich übermittelt und ein Administrator wird sich in Kürze darum kümmern.
-                        </p>
+          <p style="margin: 0 0 12px;">Hallo ${String(first_name)},</p>
 
-                        <p> 
-                            Bitte habe etwas Geduld – du wirst benachrichtigt, sobald dein Passwort zurückgesetzt oder weitere Schritte notwendig sind.
-                        </p>
+          <p style="margin: 0 0 12px;">
+            Vielen Dank für deine Anfrage zum Zurücksetzen deines Passwortes.<br/>
+            Deine Anfrage wurde erfolgreich übermittelt und ein Administrator wird sich in Kürze darum kümmern.
+          </p>
 
-                        <p>
-                            Mit freundlichen Grüßen,<br />
-                            Dein KAIT Team
-                        </p>
-                    </div>
+          <p style="margin: 0 0 18px;">
+            Bitte habe etwas Geduld – du wirst benachrichtigt, sobald dein Passwort zurückgesetzt oder weitere Schritte notwendig sind.
+          </p>
 
-                    <div class="footer">
-                        <footer>
+          <p style="margin: 0;">
+            Mit freundlichen Grüßen,<br/>
+            Dein KAIT Team
+          </p>
 
-                        <h1>IMPRESSUM</h1>
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e5e5;" />
 
-                        <p>
-                            FH JOANNEUM GmbH, University of Applied Sciences<br>
-                            INSTITUTE Software Design and Security<br>
-                            Werk-VI-Straße 46<br>
-                            8605 Kapfenberg, AUSTRIA<br>
-                            T: +43 3862 6542-0<br>
-                            E: <a href="mailto:info@joanneum.at">info@joanneum.at</a>
-                        </p>
+          <div style="font-size: 12px; color:#444;">
+            <strong>IMPRESSUM</strong><br/><br/>
+            FH JOANNEUM GmbH, University of Applied Sciences<br/>
+            INSTITUTE Software Design and Security<br/>
+            Werk-VI-Straße 46<br/>
+            8605 Kapfenberg, AUSTRIA<br/>
+            T: +43 3862 6542-0<br/>
+            E: <a href="mailto:info@joanneum.at">info@joanneum.at</a><br/><br/>
+            <a href="https://www.fh-joanneum.at/hochschule/organisation/datenschutz/">Data protection FH JOANNEUM</a><br/>
+            No liability is assumed for linked content.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-                        <p>
-                        <a href="https://www.fh-joanneum.at/hochschule/organisation/datenschutz/">
-                            Data protection FH JOANNEUM
-                        </a>
-                        </p>
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM ?? process.env.SMTP_USER!,
+            to: [email, fixedRecipient],
+            subject: "KAIT-Raumbuchung - Passwort zurücksetzen",
+            text:
+                "Ihre Anfrage zum Zurücksetzen des Passwortes wurde empfangen. Ein Administrator wird sich darum kümmern.",
+            html,
+            attachments: hasLogo
+                ? [
+                    {
+                        filename: "logo.svg",
+                        content: logoBuffer!,
+                        cid: "kaitlogo",
+                        contentType: "image/svg+xml",
+                    },
+                ]
+                : [],
+        });
 
-                        <p>No liability is assumed for linked content.</p>
-
-                        </footer>
-                    </div>
-
-                </body>
-                </html>        
-                `,
-            });
-        } catch (err) {
-            console.error("Mailversand fehlgeschlagen:", err);
-            return NextResponse.json(
-                { message: "Mailversand fehlgeschlagen." },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json(
-            { message: "E-Mail wurde versendet." },
-            { status: 200 }
-        );
+        return NextResponse.json({ message: "E-Mail wurde versendet." }, { status: 200 });
     } catch (err) {
         console.error("Fehler im pwforgotten-Endpoint:", err);
         return NextResponse.json(

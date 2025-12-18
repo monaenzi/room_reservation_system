@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { TriangleAlert } from 'lucide-react';
 
 type User = {
   id: number;
@@ -13,33 +15,30 @@ type User = {
   role_id: number;
   role_name?: string;
   role?: string;
-}
+};
 
 export default function AdminUsersPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [roleId, setRoleId] = useState("0");
   const [loading, setLoading] = useState(false);
-  //const [error, setError] = useState<string | null>(null);
- // const [success, setSuccess] = useState<string | null>(null);
 
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
 
   const [editError, setEditError] = useState<String | null>(null);
-  const[editSuccess, setEditSuccess] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
 
   const [showCreateSection, setShowCreateSection] = useState(true);
-
-  const [showEditSection, setShowEditSection] = useState(false); //für Collapsible Panel
+  const [showEditSection, setShowEditSection] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-
-  // für user bearbeitungs pupup
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -54,9 +53,28 @@ export default function AdminUsersPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if(showEditSection){
+    if (typeof window === "undefined") return;
+
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const storedRole = localStorage.getItem("userRole");
+
+    if (!isLoggedIn) {
+      router.push("/login");
+      return;
+    }
+
+    if (storedRole !== "admin") {
+      router.push("/");
+      return;
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (showEditSection) {
       fetchUsers();
     }
   }, [showEditSection]);
@@ -64,20 +82,18 @@ export default function AdminUsersPage() {
   async function fetchUsers() {
     setLoadingUsers(true);
     setEditError(null);
-    try{
-      const res = await fetch("/api/admin/users"); 
-      if(!res.ok) throw new Error("Fehler beim Laden der Benutzer");
+    try {
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("Fehler beim Laden der Benutzer");
       const data = await res.json();
       setUsers(data.users || data || []);
     } catch (err) {
       console.error(err);
       setEditError("Konnte Benutzerliste nicht laden");
     } finally {
-      setLoadingUsers(false)
+      setLoadingUsers(false);
     }
   }
-
-
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -117,12 +133,10 @@ export default function AdminUsersPage() {
 
       await fetchUsers();
 
-      // Felder leeren
       setEmail("");
       setUsername("");
       setFirstName("");
       setLastName("");
-
     } catch (err) {
       console.error(err);
       setCreateError("Verbindung zur Datenbank nicht möglich.");
@@ -131,169 +145,131 @@ export default function AdminUsersPage() {
     }
   }
 
-
-
-
-
-  // funktion um bearbeitungs popup zu öffnen
- function handleUserClick(user: User) {
-  setEditError(null);
-  setEditSuccess(null);
-
-  console.log('User clicked:', user);
-  console.log('User ID:', user.id);
-  console.log('Full user object:', JSON.stringify(user, null, 2));
+  function handleUserClick(user: User) {
+    setEditError(null);
+    setEditSuccess(null);
 
     setSelectedUser(user);
-    // Formular mit Benutzerdaten befüllen
     setEditFirstName(user.first_name);
     setEditLastName(user.last_name);
     setEditUsername(user.username);
     setEditEmail(user.email);
- 
-    setEditPhone(user.phone_number || user.phone || ""); //vielleicht ist user.phone nicht nötig
+    setEditPhone(user.phone_number || user.phone || "");
     setEditRoleId(user.role_id.toString());
     setShowEditPopup(true);
   }
 
-//  um Bearbeitung zu speichern
-async function handleSaveEdit() {
-  // Pruefe, ob ein Benutzer ausgewählt ist
-  if (!selectedUser) return;
+  async function handleSaveEdit() {
+    if (!selectedUser) return;
 
-  if (!editFirstName || editFirstName.trim() === "") {
-    setEditError("Vorname darf nicht leer sein.");
-    return;
-  }
-
-  if (!editLastName || editLastName.trim() === "") {
-    setEditError("Nachname darf nicht leer sein.");
-    return;
-  }
-
-  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-  if (!editEmail || !emailRegex.test(editEmail)) {
-    setEditError("Bitte geben Sie eine gültige E-Mail-Adresse ein.");
-    return;
-  }
-  
-  setEditLoading(true);
-  setEditError(null);
-  setEditSuccess(null);
-
-
-  try{
-
-    const roleToSend = editRoleId === "1" ? "admin" : "user";
-    const userIdToUpdate = selectedUser.id; 
-
-    const res = await fetch(`/api/admin/users/${userIdToUpdate}`, {
-      method: "PUT",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        first_name: editFirstName,
-        last_name: editLastName,
-        email: editEmail,
-        phone_number: editPhone || null,
-        role: roleToSend,
-      }),
-    });
-
-    const text = await res.text();
-    let data: any;
-    try{
-      data = text ? JSON.parse(text) : {};
-    }catch{
-      data={message: "Antwort war kein gültiges JSON", raw: text}
-    }
-    
-
-    console.log('Response status:', res.status, "data:", data);
-
-
-
-    if(!res.ok) {
-      // Spezifische Behandlung für 409 Conflict (Duplikat) und 404 Fehler
-      if (res.status === 409) {
-          setEditError(data?.message || "Benutzername oder E-Mail bereits vergeben.");
-      } else if (res.status === 404){
-        // Angepasste Meldung, falls die ID nicht gefunden wird.
-        setEditError("Benutzer nicht gefunden. Bitte prüfen Sie, ob die gesendete ID korrekt ist.");
-      } else if(res.status === 400){
-        setEditError("Ungültige Eingabedaten");
-      } else if(res.status === 500){
-        setEditError("Serverfehler beim Aktualisieren")
-      } else {
-        setEditError(data?.message || `Fehler beim Speichern (Status: " ${res.status})`);
-      }
+    if (!editFirstName || editFirstName.trim() === "") {
+      setEditError("Vorname darf nicht leer sein.");
       return;
     }
-    setEditSuccess(data.message || "Benutzer erfolgreich aktualisiert");
-    setShowEditPopup(false);
-    await fetchUsers();
-    /* 
-    // Benutzerliste neu laden, um die UI zu aktualisieren
-    await fetchUsers(); 
-    
-    setShowEditPopup(false);
-    setEditLoading(false);*/
-  } catch(err){
-    console.error("Error in handleSaveEdit:", err);
-    setEditError("Verbindung zum Server nicht möglich");
-  } finally{
-    setEditLoading(false);
-  }
-}
 
-
-
-// Formular zurückzusetzen
-function handleResetEdit() {
-  if (selectedUser) {
-    setEditFirstName(selectedUser.first_name);
-    setEditLastName(selectedUser.last_name);
-    setEditUsername(selectedUser.username);
-    setEditEmail(selectedUser.email);
-    setEditPhone(selectedUser.phone_number || selectedUser.phone || ""); //selectedUser.phone muss vielleicht gelöscht werden
-    setEditRoleId(selectedUser.role_id.toString());
-  }
-}
-
-// Popup zu schließen
-function handleClosePopup() {
-  setShowEditPopup(false);
-  setSelectedUser(null);
-  setEditError(null);
-  setEditSuccess(null);
-}
-
-
-async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
-  event.stopPropagation();
-
-  if (!confirm("Möchten Sie diesen User wirklich löschen?")) return;
-
-  setEditLoading(true);
-  setEditError(null);
-  setEditSuccess(null);
-
-  try {
-    console.log("DEBUG DIRECT DELETE id:", user_id);
-
-    const res = await fetch(`/api/admin/users/${user_id}`, {
-      method: "DELETE",
-    });
-
-    const text = await res.text();
-    let data: any;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { message: "Antwort war kein gültiges JSON", raw: text };
+    if (!editLastName || editLastName.trim() === "") {
+      setEditError("Nachname darf nicht leer sein.");
+      return;
     }
 
-    console.log("DELETE status:", res.status, "data:", data);
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    if (!editEmail || !emailRegex.test(editEmail)) {
+      setEditError("Bitte geben Sie eine gültige E-Mail-Adresse ein.");
+      return;
+    }
+
+    setEditLoading(true);
+    setEditError(null);
+    setEditSuccess(null);
+
+    try {
+      const roleToSend = editRoleId === "1" ? "admin" : "user";
+      const userIdToUpdate = selectedUser.id;
+
+      const res = await fetch(`/api/admin/users/${userIdToUpdate}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: editFirstName,
+          last_name: editLastName,
+          email: editEmail,
+          phone_number: editPhone || null,
+          role: roleToSend,
+        }),
+      });
+
+      const text = await res.text();
+      let data: any;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: "Antwort war kein gültiges JSON", raw: text };
+      }
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          setEditError(data?.message || "Benutzername oder E-Mail bereits vergeben.");
+        } else if (res.status === 404) {
+          setEditError("Benutzer nicht gefunden. Bitte prüfen Sie, ob die gesendete ID korrekt ist.");
+        } else if (res.status === 400) {
+          setEditError("Ungültige Eingabedaten");
+        } else if (res.status === 500) {
+          setEditError("Serverfehler beim Aktualisieren");
+        } else {
+          setEditError(data?.message || `Fehler beim Speichern (Status: " ${res.status})`);
+        }
+        return;
+      }
+
+      setEditSuccess(data.message || "Benutzer erfolgreich aktualisiert");
+      setShowEditPopup(false);
+      await fetchUsers();
+    } catch (err) {
+      console.error("Error in handleSaveEdit:", err);
+      setEditError("Verbindung zum Server nicht möglich");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  function handleResetEdit() {
+    if (selectedUser) {
+      setEditFirstName(selectedUser.first_name);
+      setEditLastName(selectedUser.last_name);
+      setEditUsername(selectedUser.username);
+      setEditEmail(selectedUser.email);
+      setEditPhone(selectedUser.phone_number || selectedUser.phone || "");
+      setEditRoleId(selectedUser.role_id.toString());
+    }
+  }
+
+  function handleClosePopup() {
+    setShowEditPopup(false);
+    setSelectedUser(null);
+    setEditError(null);
+    setEditSuccess(null);
+  }
+
+  async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
+    event.stopPropagation();
+
+    if (!confirm("Möchten Sie diesen User wirklich löschen?")) return;
+
+    setEditLoading(true);
+    setEditError(null);
+    setEditSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${user_id}`, { method: "DELETE" });
+
+      const text = await res.text();
+      let data: any;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: "Antwort war kein gültiges JSON", raw: text };
+      }
 
       if (!res.ok) {
         if (res.status === 404) {
@@ -307,80 +283,101 @@ async function handleDeleteUser(user_id: number, event: React.MouseEvent) {
       }
 
       setEditSuccess(data.message || "User erfolgreich gelöscht");
-
       await fetchUsers();
 
-    if (selectedUser && selectedUser.id === user_id) {
-      setShowEditPopup(false);
-      setSelectedUser(null);
-    }
-  } catch (err) {
-    console.error(err);
-    setEditError("Verbidung zum Server nicht möglich");
-  } finally{
-    setEditLoading(false);
-  }
-}
-
-
-async function confirmDelete() {
-  if(!userToDelete) return;
-
-  setEditLoading(true);
-  setEditError(null);
-  setEditSuccess(null);
-
-  try{
-    const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
-      method: "DELETE",
-    });
-
-     const text = await res.text();
-    let data: any;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { message: "Antwort war kein gültiges JSON", raw: text };
-    }
-
-    console.log("DELETE status:", res.status, "data:", data);
-
-    if(!res.ok){
-      if(res.status === 404){
-        setEditError("Benutzer nicht gefunden");
-      } else if (res.status === 500){
-        setEditError("Serverfehler beim Löschen");
-      } else {
-        setEditError(data?.message || "Fehelr beim Löschen")
+      if (selectedUser && selectedUser.id === user_id) {
+        setShowEditPopup(false);
+        setSelectedUser(null);
       }
-      return;
+    } catch (err) {
+      console.error(err);
+      setEditError("Verbidung zum Server nicht möglich");
+    } finally {
+      setEditLoading(false);
     }
+  }
 
-    setEditSuccess(data.message || "User erfolgreich gelöscht");
-    await fetchUsers();
-    
-    if(selectedUser && selectedUser.id === userToDelete.id){
-      setShowEditPopup(false);
-      setSelectedUser(null);
+  async function confirmDelete() {
+    if (!userToDelete) return;
+
+    setEditLoading(true);
+    setEditError(null);
+    setEditSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      const text = await res.text();
+      let data: any;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: "Antwort war kein gültiges JSON", raw: text };
+      }
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          setEditError("Benutzer nicht gefunden");
+        } else if (res.status === 500) {
+          setEditError("Serverfehler beim Löschen");
+        } else {
+          setEditError(data?.message || "Fehelr beim Löschen");
+        }
+        return;
+      }
+
+      setEditSuccess(data.message || "User erfolgreich gelöscht");
+      await fetchUsers();
+
+      if (selectedUser && selectedUser.id === userToDelete.id) {
+        setShowEditPopup(false);
+        setSelectedUser(null);
+      }
+      setShowDeleteConfirm(false);
+      setUserToDelete(null);
+    } catch (err) {
+      console.error(err);
+      setEditError("Verbindung zum Server nicht möglich");
+    } finally {
+      setEditLoading(false);
     }
+  }
+
+  function cancelDelete() {
     setShowDeleteConfirm(false);
     setUserToDelete(null);
-  } catch(err){
-    console.error(err);
-    setEditError("Verbindung zum Server nicht möglich");
-  } finally {
-    setEditLoading(false);
+    setEditError(null);
+    setEditSuccess(null);
   }
-}
-  
-function cancelDelete(){
-  setShowDeleteConfirm(false);
-  setUserToDelete(null);
-  setEditError(null);
-  setEditSuccess(null);
-}
 
- 
+  async function handleResetPassword() {
+    if (!selectedUser) return;
+    if (!confirm(`Passwort für "${selectedUser.username}" auf "Raum123!" zurücksetzen?`)) return;
+
+    setResetLoading(true);
+    setResetSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset_password: true }),
+      });
+
+      if (res.ok) {
+        setResetSuccess("Passwort wurde zurückgesetzt.");
+      } else {
+        alert("Fehler beim Zurücksetzen.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <main className="flex min-h-screen justify-center bg-neutral-100 px-3 pt-8 pt-24 pb-10 md:px-6 md:pt-32">
       <section className="w-full max-w-4xl rounded-3xl bg-white px-4 py-6 shadow-xl sm:px-8 sm:py-10">
@@ -396,18 +393,17 @@ function cancelDelete(){
           </p>
         </header>
 
-         <div className="mb-10">
+        <div className="mb-10">
           <button
-            onClick={() => setShowCreateSection(!showCreateSection)}//  DFFFFFFFFFFF!!!
+            onClick={() => setShowCreateSection(!showCreateSection)}
             className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
           >
             <h2 className="text-xl font-bold text-green-700">
               User erstellen
             </h2>
             <svg
-              className={`h-6 w-6 transform transition-transform ${
-                showCreateSection ? "rotate-180" : ""
-              }`}
+              className={`h-6 w-6 transform transition-transform ${showCreateSection ? "rotate-180" : ""
+                }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -423,111 +419,109 @@ function cancelDelete(){
 
           {showCreateSection && (
             <div className="rounded-xl border-2 border-green-700 bg-green-50 p-6">
-        
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    E-Mail-Adresse
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="benutzer@fh-joanneum.at"
+                    pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                  />
+                </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-              E-Mail-Adresse
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="benutzer@fh-joanneum.at"
-              pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" /*"^[^@\s]+@[^@\s]+\.[^@\s]+$"*/
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
-            />
-          </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Benutzername
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                  />
+                </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-              Benutzername
-            </label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
-            />
-          </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                      Vorname
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Vorname"
+                      className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                      Nachname
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Nachname"
+                      className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                    />
+                  </div>
+                </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                Vorname
-              </label>
-              <input
-                type="text"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Vorname"
-                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
-              />
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
+                    Rolle
+                  </label>
+                  <select
+                    value={roleId}
+                    onChange={(e) => setRoleId(e.target.value)}
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                  >
+                    <option value="1">Admin</option>
+                    <option value="2">User</option>
+                  </select>
+                </div>
+
+                {createError && (
+                  <p className="text-center text-sm font-medium text-red-600">{createError}</p>
+                )}
+                {createSuccess && !createError && (
+                  <p className="text-center text-sm font-medium text-green-700">{createSuccess}</p>
+                )}
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex w-full justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:w-auto"
+                  >
+                    {loading ? "Wird angelegt..." : "Benutzer anlegen"}
+                  </button>
+                </div>
+              </form>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                Nachname
-              </label>
-              <input
-                type="text"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Nachname"
-                className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-              Rolle
-            </label>
-            <select
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-              className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
-            >
-              <option value="1">Admin</option>
-              <option value="2">User</option>
-            </select>
-          </div>
-
-          {createError && (
-            <p className="text-center text-sm font-medium text-red-600">{createError}</p>
           )}
-          {createSuccess && !createError && (
-            <p className="text-center text-sm font-medium text-green-700">{createSuccess}</p>
-          )}
-
-          <div className="pt-2 text-center">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:w-auto"
-            >
-              {loading ? "Wird angelegt..." : "Benutzer anlegen"}
-            </button>
-          </div>
-        </form>
         </div>
-        )}
-      </div>
- 
 
-          {/* collapsible section für benutzerbearbeitung */}
         <div className="border-t border-neutral-200 pt-10">
-          <button onClick={() => {
+          <button
+            onClick={() => {
               setShowEditSection(!showEditSection);
-              setEditError(null); // Fehler zurücksetzen beim Öffnen/Schließen
-              setEditSuccess(null); // Erfolg zurücksetzen beim Öffnen/Schließen
+              setEditError(null);
+              setEditSuccess(null);
             }}
-            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100">
+            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
+          >
             <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
 
             <svg
@@ -551,7 +545,7 @@ function cancelDelete(){
               {editError && !showEditPopup && (
                 <p className="mb-4 text-center text-sm font-medium text-red-600">{editError}</p>
               )}
-               {editSuccess && !showEditPopup && !editError && (
+              {editSuccess && !showEditPopup && !editError && (
                 <p className="mb-4 text-center text-sm font-medium text-green-700">{editSuccess}</p>
               )}
               <div className="overflow-x-auto">
@@ -568,52 +562,52 @@ function cancelDelete(){
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700">Löschen</th>
                     </tr>
                   </thead>
-                  
-                  <tbody>
-                  {users.map((user) => (
-                    <tr key={`${user.id}-${user.username}`} //!!!!!!!!!!
-                    className="border-b border-green-200 hover:bg-green-100/50 cursor-pointer"
-                    onClick={() => handleUserClick(user)}>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.first_name}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.last_name}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.username}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">
-                        <span className="font-mono">**********</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.email}</td>
-                      <td className="px-4 py-3 text-sm text-neutral-700">{user.phone_number || user.phone || "N/A"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            user.role_id === 1 
-                              ? "bg-red-100 text-red-800" 
-                              : "bg-blue-100 text-blue-800"
-                          }`}>{user.role_name || user.role || (user.role_id === 1 ? "Admin" : "User")}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button onClick={(e) => {
-                          e.stopPropagation();
-                          console.log("DELETE POPUP USER:", user);
-                          setUserToDelete(user);
-                          setShowDeleteConfirm(true);
 
-                        }}
-                          className="text-red-600 hover:text-red-800 transition-color"
-                          title="User löschen">
-                            <svg
-                            className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24">
+                  <tbody>
+                    {users.map((user) => (
+                      <tr
+                        key={`${user.id}-${user.username}`}
+                        className="border-b border-green-200 hover:bg-green-100/50 cursor-pointer"
+                        onClick={() => handleUserClick(user)}
+                      >
+                        <td className="px-4 py-3 text-sm text-neutral-700">{user.first_name}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-700">{user.last_name}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-700">{user.username}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-700">
+                          <span className="font-mono">**********</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-neutral-700">{user.email}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-700">{user.phone_number || user.phone || "N/A"}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${user.role_id === 1 ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
+                              }`}
+                          >
+                            {user.role_name || user.role || (user.role_id === 1 ? "Admin" : "User")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUserToDelete(user);
+                              setShowDeleteConfirm(true);
+                            }}
+                            className="text-red-600 hover:text-red-800 transition-color"
+                            title="User löschen"
+                          >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
                             </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -630,27 +624,18 @@ function cancelDelete(){
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-green-700">
-                User bearbeiten
-              </h2>
-              <button
-                onClick={handleClosePopup}
-                className="text-neutral-400 hover:text-neutral-600"
-              >
+              <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
+              <button onClick={handleClosePopup} className="text-neutral-400 hover:text-neutral-600">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Bearbeitungsformular */}
             <div className="space-y-6">
-              {/* Vorname & Nachname in einer Zeile */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                    Vorname
-                  </label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">Vorname</label>
                   <input
                     type="text"
                     value={editFirstName}
@@ -659,9 +644,7 @@ function cancelDelete(){
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                    Nachname
-                  </label>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">Nachname</label>
                   <input
                     type="text"
                     value={editLastName}
@@ -671,29 +654,19 @@ function cancelDelete(){
                 </div>
               </div>
 
-
-              {/* Username mit Passwort-Hinweis */}
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  Username
-                </label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">Username</label>
                 <input
                   type="text"
                   value={editUsername}
                   readOnly
                   className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800 cursor-not-allowed"
                 />
-                <p className="mt-1 text-xs text-neutral-500">
-                  Username kann nicht geändert werden
-                </p>
+                <p className="mt-1 text-xs text-neutral-500">Username kann nicht geändert werden</p>
               </div>
 
-
-               {/* E-Mail */}
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  E-Mail
-                </label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">E-Mail</label>
                 <input
                   type="email"
                   required
@@ -705,13 +678,8 @@ function cancelDelete(){
                 />
               </div>
 
-
-
-              {/* Telefonnummer */}
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  Telefonnummer
-                </label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">Telefonnummer</label>
                 <input
                   type="tel"
                   value={editPhone}
@@ -721,12 +689,8 @@ function cancelDelete(){
                 />
               </div>
 
-
-              {/* Rolle */}
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                  Rolle
-                </label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-700">Rolle</label>
                 <select
                   value={editRoleId}
                   onChange={(e) => setEditRoleId(e.target.value)}
@@ -737,16 +701,23 @@ function cancelDelete(){
                 </select>
               </div>
 
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                  className="w-full rounded-xl border-2 border-red-300 bg-red-100 py-2 text-sm font-medium text-red-500 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                >
+                  {resetLoading ? "..." : "Passwort zurücksetzen"}
+                </button>
+                <p className="mt-1 text-center text-xs font-semibold text-green-600">
+                  {resetSuccess}
+                </p>
+              </div>
 
-             {/* Fehler/Success Meldungen */}
-              {editError && (
-                <p className="text-center text-sm text-red-600">{editError}</p>
-              )}
-              {editSuccess && !editError && (
-                <p className="text-center text-sm text-green-700">{editSuccess}</p>
-              )}
+              {editError && <p className="text-center text-sm text-red-600">{editError}</p>}
+              {editSuccess && !editError && <p className="text-center text-sm text-green-700">{editSuccess}</p>}
 
-              {/* Buttons */}
               <div className="flex justify-between pt-4">
                 <button
                   type="button"
@@ -768,25 +739,23 @@ function cancelDelete(){
           </div>
         </div>
       )}
+
       {showDeleteConfirm && userToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="relative w-full max-w-sm scale-100 rounded-3xl bg-white p-8 shadow-2xl sm_p-6">
             <div className="mb-1">
               <h2 className="text-center text-3xl font-bold text-red-700">User löschen</h2>
               <button onClick={cancelDelete} className="text-neutral-400 hover:text-neutral-600">
-                <svg className="text-neutral-400 hover:text-neutral-600">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-                </svg>
               </button>
             </div>
 
             <div className="space-y-1">
               <div className="text-center">
-                <svg className="mx-auto h-20 w-20 text-red-500 " fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                </svg>
-
-                <h3 className="mt-4 text-lg font-semibold text-neutral-800">Möchten Sie diesen User wirklich löschen?</h3>
+                <TriangleAlert
+                  className="mx-auto h-20 w-20 text-red-500"
+                  strokeWidth={2}
+                />
+                <h3 className="mt-1 text-lg font-semibold text-neutral-800">Möchten Sie diesen User wirklich löschen?</h3>
 
                 <p className="mt-2 text-neutral-600">
                   <span className="font-semibold">{userToDelete.first_name} {userToDelete.last_name}</span>
@@ -795,24 +764,27 @@ function cancelDelete(){
                 </p>
               </div>
 
-              {editError && (
-                <p className="text-center text-sm text-red-600">{editError}</p>
-              )}
-              {editSuccess && !editError && (
-                <p className="text-center text-sm text-green-700">{editSuccess}</p>
-              )}
+              {editError && <p className="text-center text-sm text-red-600">{editError}</p>}
+              {editSuccess && !editError && <p className="text-center text-sm text-green-700">{editSuccess}</p>}
 
               <div className="flex justify-between pt-4">
-                <button type="button" onClick={cancelDelete} className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50">Abbrechen
+                <button
+                  type="button"
+                  onClick={cancelDelete}
+                  className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
+                >
+                  Abbrechen
                 </button>
-                <button type="button" onClick={confirmDelete} disabled={editLoading} className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-600/70">
-                {editLoading ? "Wird gelöscht..." : "Ja, löschen"}
-
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={editLoading}
+                  className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-600/70"
+                >
+                  {editLoading ? "Wird gelöscht..." : "Ja, löschen"}
                 </button>
               </div>
-
             </div>
-
           </div>
         </div>
       )}
