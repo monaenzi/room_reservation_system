@@ -644,6 +644,48 @@ body {
   border-color: #9fef00 !important;
 }
 
+
+[data-theme="dark"] .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+/* Time labels */
+[data-theme="dark"] .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+/* Divider lines */
+[data-theme="dark"] .border-t.border-\[\#0f692b\],
+[data-theme="dark"] .border-b.border-\[\#0f692b\] {
+  border-color: #9fef00 !important;
+}
+
+/* Calendar - Additional Text Colors for Guest Mode */
+[data-theme="dark"] .text-gray-600.mt-0\.5 {
+  color: #9ca3af !important;
+}
+
+[data-theme="dark"] div.text-gray-600 {
+  color: #9ca3af !important;
+}
+
+/* Calendar Cells - Generic bg-white */
+[data-theme="dark"] .border-t.border-\[\#0f692b\].bg-white {
+  background-color: #1a2332 !important;
+}
+
+[data-theme="dark"] .border-t.bg-white {
+  background-color: #1a2332 !important;
+}
+
+/* General bg-white fallback for calendar */
+[data-theme="dark"] div.bg-white:not(.shadow-xl):not(.rounded-2xl):not(.rounded-3xl):not(.cursor-pointer) {
+  background-color: #1a2332 !important;
+}
+
+
+
+
 /*footer dark mode*/
 [data-theme="dark"] footer.bg-white {
   background-color: #1a2332 !important;
