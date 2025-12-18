@@ -638,58 +638,58 @@ export default function RoomsPage() {
             .catch(err => console.error('Fehler beim Laden der Timeslots:', err));
     };
 
-const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
-  // HIER ÄNDERN - Bessere Confirm Messages
-  if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
-    // FÜR SERIE: "Alle Termine löschen"
-    if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
-      return;
-    }
-  } else {
-    // FÜR EINZELNE BUCHUNG: Einfach "Buchung löschen"
-    if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
-      return;
-    }
-  }
-
-  try {
-    if (groupedBooking.pattern_id) {
-      const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Fehler beim Löschen');
-      }
-      alert('Buchungen erfolgreich gelöscht!');
-    } else {
-      for (const bookingId of groupedBooking.booking_ids) {
-        const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
-          method: 'DELETE',
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.message || 'Fehler beim Löschen');
+    const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
+        // HIER ÄNDERN - Bessere Confirm Messages
+        if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
+            // FÜR SERIE: "Alle Termine löschen"
+            if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
+                return;
+            }
+        } else {
+            // FÜR EINZELNE BUCHUNG: Einfach "Buchung löschen"
+            if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
+                return;
+            }
         }
-      }
-      alert('Buchung erfolgreich gelöscht!');
-    }
 
-    loadUserBookings();
+        try {
+            if (groupedBooking.pattern_id) {
+                const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
+                    method: 'DELETE',
+                });
 
-    if (selectedRoomId) {
-      const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
-      const timeslotsData = await timeslotsRes.json();
-      setTimeslots(timeslotsData);
-    }
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Fehler beim Löschen');
+                }
+                alert('Buchungen erfolgreich gelöscht!');
+            } else {
+                for (const bookingId of groupedBooking.booking_ids) {
+                    const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
+                        method: 'DELETE',
+                    });
 
-  } catch (err) {
-    console.error('Fehler beim Löschen:', err);
-    alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
-  }
-};
+                    if (!res.ok) {
+                        const error = await res.json();
+                        throw new Error(error.message || 'Fehler beim Löschen');
+                    }
+                }
+                alert('Buchung erfolgreich gelöscht!');
+            }
+
+            loadUserBookings();
+
+            if (selectedRoomId) {
+                const timeslotsRes = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+                const timeslotsData = await timeslotsRes.json();
+                setTimeslots(timeslotsData);
+            }
+
+        } catch (err) {
+            console.error('Fehler beim Löschen:', err);
+            alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
+        }
+    };
 
     const handleManageSeries = (group: GroupedBooking) => {
         if (!group.is_recurring) return;
@@ -1643,16 +1643,16 @@ const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
                                                             Enddatum setzen
                                                         </button>
                                                     )}
-                                          <button
-  onClick={() => handleDeleteBooking(group)}
-  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
-  aria-label="Buchung löschen"
->
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-  {group.is_recurring ? 'Alle Termine löschen' : 'Löschen'}
-</button>
+                                                    <button
+                                                        onClick={() => handleDeleteBooking(group)}
+                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                                        aria-label="Buchung löschen"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        {group.is_recurring ? 'Alle Termine löschen' : 'Löschen'}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1722,14 +1722,14 @@ const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
                                                     )}
                                                 </div>
 
-                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-  <div>
-    <div className="text-sm font-medium text-gray-500">Benutzer</div>
-    <div className="text-sm text-gray-800">
-      {/* Wir müssen den Username aus den adminRequests holen */}
-      {adminRequests.find(r => r.user_id === group.user_id)?.username || `ID: ${group.user_id}`}
-    </div>
-  </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-500">Benutzer</div>
+                                                        <div className="text-sm text-gray-800">
+                                                            {/* Wir müssen den Username aus den adminRequests holen */}
+                                                            {adminRequests.find(r => r.user_id === group.user_id)?.username || `ID: ${group.user_id}`}
+                                                        </div>
+                                                    </div>
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Zeitraum</div>
                                                         <div className="text-sm text-gray-800">

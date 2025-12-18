@@ -130,12 +130,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const { 
-      user_id, 
-      room_id, 
-      slot_date, 
-      start_time, 
-      end_time, 
+    const {
+      user_id,
+      room_id,
+      slot_date,
+      start_time,
+      end_time,
       reason,
       is_recurring = false,
       frequency = 'daily',
@@ -196,14 +196,30 @@ export async function POST(req: NextRequest) {
     `
     );
 
-    if (is_recurring) {
-      const patternResult: any = await conn.query(
-        "INSERT INTO recurring_pattern (frequency, start_date, end_date, until_date) VALUES (?, ?, ?, ?)",
-        [frequency, normalizedDate, until_date, until_date]
+    // VERBESSERTE PRÜFUNG FÜR ÜBERLAPPUNGEN (als separate Funktion)
+    const checkOverlap = async (date: string, connection: mariadb.PoolConnection) => {
+      const existing = await connection.query(
+        `SELECT * FROM timeslot 
+         WHERE room_id = ? 
+           AND slot_date = ? 
+           AND (
+             (start_time < ? AND end_time > ?) OR
+             (start_time >= ? AND start_time < ?) OR
+             (end_time > ? AND end_time <= ?)
+           )
+           AND timeslot_status IN (2, 3)`,
+        [
+          room_id, date,
+          end_time, start_time,
+          start_time, end_time,
+          start_time, end_time
+        ]
       );
+      return existing.length > 0;
+    };
 
-      const pattern_id = Number(patternResult.insertId);
-
+    if (is_recurring) {
+      // ZUERST: Generiere alle Daten
       const generatedDates = generateRecurringDates(
         normalizedDate,
         until_date,
@@ -211,32 +227,57 @@ export async function POST(req: NextRequest) {
         RECURRING_BOOKING_MAX_YEARS
       );
 
+      // PRÜFE ALLE DATEN AUF KONFLIKTE
+      const conflictingDates: string[] = [];
+      
+      for (const date of generatedDates) {
+        const hasConflict = await checkOverlap(date, conn);
+        if (hasConflict) {
+          conflictingDates.push(date);
+        }
+      }
+
+      // WENN ES KONFLIKTE GIBT: ABBRECHEN
+      if (conflictingDates.length > 0) {
+        const conflictList = conflictingDates
+          .slice(0, 5)
+          .map(d => new Date(d).toLocaleDateString('de-DE'))
+          .join(', ');
+        
+        const additional = conflictingDates.length > 5 ? ` und ${conflictingDates.length - 5} weitere` : '';
+        
+        return NextResponse.json(
+          { 
+            message: `Es gibt Konflikte mit bestehenden Buchungen an folgenden Tagen: ${conflictList}${additional}. 
+                      Die gesamte wiederkehrende Buchung wurde abgebrochen.` 
+          },
+          { status: 409 }
+        );
+      }
+
+      // WENN KEINE KONFLIKTE: Pattern erstellen
+      const patternResult: any = await conn.query(
+        "INSERT INTO recurring_pattern (frequency, start_date, end_date, until_date) VALUES (?, ?, ?, ?)",
+        [frequency, normalizedDate, until_date, until_date]
+      );
+
+      const pattern_id = Number(patternResult.insertId);
+
       const bookings = [];
       let successfulBookings = 0;
 
-      for (const date of generatedDates) {
-        const existing = await conn.query(
-          `SELECT * FROM timeslot 
-           WHERE room_id = ? 
-             AND slot_date = ? 
-             AND start_time < ? 
-             AND end_time > ? 
-             AND timeslot_status IN (2, 3)`,
-          [room_id, date, end_time, start_time]
-        );
+      // Transaktion für alle Buchungen
+      try {
+        await conn.query("START TRANSACTION");
 
-        if (existing.length > 0) {
-          continue;
-        }
-
-        try {
+        for (const date of generatedDates) {
           const timeslotResult: any = await conn.query(
             "INSERT INTO timeslot (room_id, slot_date, start_time, end_time, timeslot_status) VALUES (?, ?, ?, ?, 2)",
             [room_id, date, start_time, end_time]
           );
 
           const timeslot_id = Number(timeslotResult.insertId);
-          
+
           const bookingResult: any = await conn.query(
             "INSERT INTO booking (user_id, timeslot_id, reason, booking_status, is_recurring, pattern_id) VALUES (?, ?, ?, ?, ?, ?)",
             [user_id, timeslot_id, reason, bookingStatus, 1, pattern_id]
@@ -248,9 +289,20 @@ export async function POST(req: NextRequest) {
             timeslot_id: Number(timeslotResult.insertId),
             booking_id: Number(bookingResult.insertId)
           });
-        } catch (error) {
-          console.error(`Fehler beim Erstellen der Buchung für ${date}:`, error);
         }
+
+        await conn.query("COMMIT");
+      } catch (error) {
+        await conn.query("ROLLBACK");
+        console.error("Fehler beim Erstellen der wiederkehrenden Buchungen:", error);
+        
+        // Pattern löschen, da Buchungen fehlgeschlagen sind
+        await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
+        
+        return NextResponse.json(
+          { message: "Fehler beim Erstellen der wiederkehrenden Buchungen. Bitte versuchen Sie es erneut." },
+          { status: 500 }
+        );
       }
 
       const safeBookings = bookings.map(booking => ({
@@ -273,19 +325,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await conn.query(
-      `SELECT * FROM timeslot 
-       WHERE room_id = ? 
-         AND slot_date = ? 
-         AND start_time < ? 
-         AND end_time > ? 
-         AND timeslot_status IN (2, 3)`,
-      [room_id, normalizedDate, end_time, start_time]
-    );
-
-    if (existing.length > 0) {
+    // FÜR EINZELNE BUCHUNG: Prüfen auf Überlappung
+    const hasConflict = await checkOverlap(normalizedDate, conn);
+    if (hasConflict) {
+      const existing = await conn.query(
+        `SELECT * FROM timeslot 
+         WHERE room_id = ? 
+           AND slot_date = ? 
+           AND timeslot_status IN (2, 3)`,
+        [room_id, normalizedDate]
+      );
+      
+      const conflictInfo = existing[0];
+      const conflictTime = conflictInfo ? 
+        `${conflictInfo.start_time.substring(0, 5)}-${conflictInfo.end_time.substring(0, 5)}` : '';
+      const conflictReason = conflictInfo?.blocked_reason || conflictInfo?.reason || 'Belegt';
+      
       return NextResponse.json(
-        { message: "Dieser Zeitraum ist bereits belegt." },
+        { 
+          message: `Dieser Zeitraum ist bereits belegt ${conflictTime ? `(${conflictTime}: ${conflictReason})` : ''}.` 
+        },
         { status: 409 }
       );
     }
@@ -330,7 +389,7 @@ function generateRecurringDates(startDate: string, untilDate: string, frequency:
   const dates: string[] = [];
   const start = new Date(startDate);
   const until = new Date(untilDate);
-  
+
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + maxYears);
   const effectiveUntil = until < maxDate ? until : maxDate;
@@ -339,12 +398,12 @@ function generateRecurringDates(startDate: string, untilDate: string, frequency:
 
   while (currentDate <= effectiveUntil) {
     const dayOfWeek = currentDate.getDay(); // 0 = Sonntag, 6 = Samstag
-    
+
     // Überspringe Wochenenden (nur Montag-Freitag)
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       dates.push(currentDate.toISOString().split('T')[0]);
     }
-    
+
     if (frequency === 'daily') {
       currentDate.setDate(currentDate.getDate() + 1);
     } else {
