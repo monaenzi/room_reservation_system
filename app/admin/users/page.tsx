@@ -52,6 +52,9 @@ export default function AdminUsersPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -346,6 +349,32 @@ export default function AdminUsersPage() {
     setUserToDelete(null);
     setEditError(null);
     setEditSuccess(null);
+  }
+
+  async function handleResetPassword() {
+    if (!selectedUser) return;
+    if (!confirm(`Passwort für "${selectedUser.username}" auf "Raum123!" zurücksetzen?`)) return;
+
+    setResetLoading(true);
+    setResetSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset_password: true }),
+      });
+
+      if (res.ok) {
+        setResetSuccess("Passwort wurde zurückgesetzt.");
+      } else {
+        alert("Fehler beim Zurücksetzen.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResetLoading(false);
+    }
   }
 
   return (
@@ -669,6 +698,20 @@ export default function AdminUsersPage() {
                   <option value="1">Admin</option>
                   <option value="2">User</option>
                 </select>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                  className="w-full rounded-xl border-2 border-red-300 bg-red-100 py-2 text-sm font-medium text-red-500 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                >
+                  {resetLoading ? "..." : "Passwort auf Standard (Raum123!) zurücksetzen"}
+                </button>
+                <p className="mt-1 text-center text-xs font-semibold text-green-600">
+                  {resetSuccess}
+                </p>
               </div>
 
               {editError && <p className="text-center text-sm text-red-600">{editError}</p>}
