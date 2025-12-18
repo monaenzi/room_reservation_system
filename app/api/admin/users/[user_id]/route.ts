@@ -206,7 +206,7 @@ export async function PUT(
               to: [email, recipientEmail],
               subject: "KAIT-Raumbuchung - Passwort wurde zurückgesetzt",
               text:
-                  `Dein Passwort wurde zurückgesetzt. Das neue Passwort lautet: ${DEFAULT_PASSWORD}`,
+                  `Dein Passwort wurde zurückgesetzt.`,
               html,
               attachments: hasLogo && logoBuffer
                   ? [
