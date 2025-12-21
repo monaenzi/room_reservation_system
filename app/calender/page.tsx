@@ -367,7 +367,7 @@ export default function RoomsPage() {
 
     const [isRecurring, setIsRecurring] = useState(false);
     const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
-    const [twoYears, setTwoYears] = useState(false);
+    const [twoYears, setTwoYears] = useState(true);
     const [showUntilDate, setShowUntilDate] = useState(false);
     const [untilDate, setUntilDate] = useState('');
 
