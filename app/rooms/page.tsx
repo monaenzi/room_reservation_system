@@ -102,6 +102,12 @@ export default function RoomsOverviewPage() {
         fetchRooms();
     }, [role]);
 
+    // Hilfsfunktion für Stockwerksanzeige
+    const formatFloor = (floor: number | null): string => {
+        if (floor === null) return "EG";
+        return `${floor}. Stock`;
+    };
+
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -369,9 +375,7 @@ export default function RoomsOverviewPage() {
                                                 <div>
                                                     <dt className="font-semibold">Etage</dt>
                                                     <dd>
-                                                        {room.floor_number != null
-                                                            ? `Stock ${room.floor_number}`
-                                                            : "—"}
+                                                        {formatFloor(room.floor_number)}
                                                     </dd>
                                                 </div>
                                             </div>
@@ -684,7 +688,7 @@ export default function RoomsOverviewPage() {
                                             </span>
                                             {room.building && (
                                                 <span className="ml-2 text-sm text-gray-500">
-                                                    ({room.building}, Stock {room.floor_number})
+                                                    ({room.building}, {formatFloor(room.floor_number)})
                                                 </span>
                                             )}
                                         </label>
@@ -790,7 +794,7 @@ export default function RoomsOverviewPage() {
                                                     </span>
                                                     {room.building && (
                                                         <span className="ml-2 text-sm text-gray-500">
-                                                            ({room.building}, Stock {room.floor_number})
+                                                            ({room.building}, {formatFloor(room.floor_number)})
                                                         </span>
                                                     )}
                                                 </div>
