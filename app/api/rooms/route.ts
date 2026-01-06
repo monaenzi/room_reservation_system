@@ -48,19 +48,19 @@ export async function POST(req:NextRequest) {
 
         let image_url = null;
         if (imageFile && imageFile.size > 0){
-            const buffer = Buffer.from(await imageFile.arrayBuffer());
-            const sanatizedName = imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-            const filename = `${Date.now()}_${sanatizedName}`;
-            const uploadDir = path.join(process.cwd(), "public/uploads");
-
-            try {
+            try{
+                const buffer = Buffer.from(await imageFile.arrayBuffer());
+                const sanatizedName = imageFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+                const filename = `${Date.now()}_${sanatizedName}`;
+                const uploadDir = path.join(process.cwd(), "public", "uploads");
                 await mkdir(uploadDir, { recursive: true });
-            } catch (err) {
-                //ignore if directory exists
+                const filePath = path.join(uploadDir, filename);
+                await writeFile(filePath, buffer);
+                image_url = `/uploads/${filename}`;
+            } catch (err){
+                console.error("Fehler beim Hochladen des Bildes:", err);
+                throw new Error("Fehler beim Speichern des Bildes");
             }
-
-            await writeFile(path.join(uploadDir, filename), buffer);
-            image_url = `/uploads/${filename}`;
         }
 
         try {
