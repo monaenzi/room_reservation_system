@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
-import { writeFile, mkdir, unlink } from "fs/promises";
+import { writeFile, mkdir, unlink , chmod } from "fs/promises";
 import path from "path";
 import { cwd } from "process";
 
@@ -56,6 +56,9 @@ export async function POST(req:NextRequest) {
                 await mkdir(uploadDir, { recursive: true });
                 const filePath = path.join(uploadDir, filename);
                 await writeFile(filePath, buffer);
+                if (process.platform !== "win32") {
+                    await chmod(filePath, 0o644);
+                }
                 image_url = `/uploads/${filename}`;
             } catch (err){
                 console.error("Fehler beim Hochladen des Bildes:", err);
