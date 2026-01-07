@@ -24,7 +24,7 @@ export default function AdminUsersPage() {
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [roleId, setRoleId] = useState("0");
+  const [roleId, setRoleId] = useState("2");
   const [loading, setLoading] = useState(false);
 
   const [createError, setCreateError] = useState<string | null>(null);
