@@ -887,25 +887,22 @@ export default function RoomsPage() {
         [timeslots, selectedRoomId]
     );
 
-    const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot | undefined => {
+    const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot[] => {
         const dateStr = toISODate(weekDates[dateIndex]);
-
-        return timeslotsForRoom.find((t) => {
+        return timeslotsForRoom.filter((t) => {
             const slotDateStr = normalizeSlotDate(t.slot_date);
             if (slotDateStr !== dateStr) return false;
-
-            const startHour = getHourFromTime(t.start_time);
-            const endHour = getHourFromTime(t.end_time);
 
             const startMinutes = timeToMinutes(t.start_time);
             const endMinutes = timeToMinutes(t.end_time);
 
             const cellStartMinutes = hour * 60;
-            const cellEndMinutes = (hour + 1) * 60 - 1;
+            const cellEndMinutes = (hour + 1) * 60;
 
-            return (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes);
+            return startMinutes < cellEndMinutes && endMinutes > cellStartMinutes;
         });
     };
+
 
     const isCurrentWeek = useMemo(() => {
         const todayMonday = getMonday(new Date());
