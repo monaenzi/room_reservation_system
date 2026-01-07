@@ -1012,7 +1012,7 @@ export default function RoomsPage() {
                     <div className="mb-2 md:mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4">
                         <div className="flex gap-2 w-full md:w-auto">
                             <select
-                                className="rounded-xl w-full md:w-35 border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold"
+                                className="rounded-xl w-full md:w-35 border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold cursor-pointer"
                                 value={selectedRoomId}
                                 onChange={(e) => setSelectedRoomId(Number(e.target.value))}
                             >
@@ -1032,7 +1032,7 @@ export default function RoomsPage() {
                             {(role === 'user' || role === 'admin') && (
                                 <button
                                     onClick={handleOpenBookingList}
-                                    className="rounded-xl border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors flex items-center gap-1.5"
+                                    className="rounded-xl border border-[#0f692b] bg-white px-3 py-1 text-sm text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                                     aria-label="Meine Buchungen anzeigen"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1047,7 +1047,7 @@ export default function RoomsPage() {
                         <div className="hidden md:flex items-center gap-3">
                             <button
                                 onClick={goToPreviousWeek}
-                                className="rounded-lg bg-white border border-[#0f692b] px-3 py-1.5 text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors"
+                                className="rounded-lg bg-white border border-[#0f692b] px-3 py-1.5 text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors cursor-pointer"
                                 aria-label="Vorherige Woche"
                             >
                                 ← Zurück
@@ -1058,13 +1058,13 @@ export default function RoomsPage() {
                                     {getWeekRange(currentWeekStart)}
                                 </div>
                                 {!isCurrentWeek && (
-                                    <button onClick={goToCurrentWeek} className="mt-1 text-xs text-[#0f692b] underline hover:text-[#0a4d1f]">
+                                    <button onClick={goToCurrentWeek} className="mt-1 text-xs text-[#0f692b] underline hover:text-[#0a4d1f] cursor-pointer">
                                         Zur aktuellen Woche
                                     </button>
                                 )}
                             </div>
 
-                            <button onClick={goToNextWeek} className="rounded-lg bg-white border border-[#0f692b] px-3 py-1.5 text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors" aria-label="Nächste Woche">
+                            <button onClick={goToNextWeek} className="rounded-lg bg-white border border-[#0f692b] px-3 py-1.5 text-[#0f692b] font-semibold hover:bg-[#0f692b] hover:text-white transition-colors cursor-pointer" aria-label="Nächste Woche">
                                 Weiter →
                             </button>
                         </div>
@@ -1262,7 +1262,7 @@ export default function RoomsPage() {
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
             bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
-            flex flex-col items-center justify-center text-green-700 text-xl
+            flex flex-col items-center justify-center text-green-700 text-xl cursor-pointer
             shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
             ${isSidebarOpen
                             ? 'right-[75vw] sm:right-80 translate-x-0'
@@ -1271,7 +1271,7 @@ export default function RoomsPage() {
         `}
                 >
                     {isSidebarOpen ? (
-                        <div className="flex items-center justify-center w-full h-full">
+                        <div className="flex items-center justify-center w-full h-full cursor-pointer">
                             <span className="text-3xl font-bold text-green-700">➜</span>
                         </div>
                     ) : (
@@ -1301,14 +1301,14 @@ export default function RoomsPage() {
                         handleOpenRequestsPopup();
                         setIsSidebarOpen(false);
                     }}
-                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm cursor-pointer">
                         Anfragen verwalten
                     </button>
                     <button onClick={() => {
                         setShowBlockPopup(true);
                         setIsSidebarOpen(false);
                     }}
-                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm">
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm cursor-pointer">
                         Tag/Zeitslots sperren
                     </button>
                 </div>
@@ -1321,7 +1321,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Raum buchen</h2>
                             <button
                                 onClick={() => setOpenBooking(false)}
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
                                 aria-label="Schließen"
                             >
                                 ×
@@ -1334,7 +1334,7 @@ export default function RoomsPage() {
                                     Raum
                                 </label>
                                 <select
-                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                     value={selectedRoomId}
                                     onChange={(e) => setSelectedRoomId(Number(e.target.value))}
                                 >
@@ -1354,7 +1354,7 @@ export default function RoomsPage() {
                                     type="date"
                                     value={selectedDate || ''}
                                     onChange={(e) => setSelectedDate(e.target.value)}
-                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                 />
                             </div>
 
@@ -1366,7 +1366,7 @@ export default function RoomsPage() {
                                     <select
                                         value={startTime}
                                         onChange={(e) => handleStartTimeChange(e.target.value)}
-                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                     >
                                         {TIME_OPTIONS.map((time) => (
                                             <option key={time} value={time}>
@@ -1385,7 +1385,7 @@ export default function RoomsPage() {
                                             setEndTime(e.target.value);
                                             setTimeError('');
                                         }}
-                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                        className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                     >
                                         {availableEndTimes.map((time) => (
                                             <option key={time} value={time}>
@@ -1434,7 +1434,7 @@ export default function RoomsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setFrequency('daily')}
-                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'daily'
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${frequency === 'daily'
                                                         ? 'bg-[#0f692b] text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                                 >
@@ -1443,7 +1443,7 @@ export default function RoomsPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setFrequency('weekly')}
-                                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${frequency === 'weekly'
+                                                    className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${frequency === 'weekly'
                                                         ? 'bg-[#0f692b] text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                                 >
@@ -1535,13 +1535,13 @@ export default function RoomsPage() {
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
                                 onClick={() => setOpenBooking(false)}
-                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handleBookingSubmit}
-                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Absenden
                             </button>
@@ -1557,7 +1557,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Meine Buchungen</h2>
                             <button
                                 onClick={() => setOpenBookingList(false)}
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
                                 aria-label="Schließen"
                             >
                                 ×
@@ -1648,7 +1648,7 @@ export default function RoomsPage() {
                                                     {group.is_recurring && (
                                                         <button
                                                             onClick={() => handleManageSeries(group)}
-                                                            className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200 transition-colors flex items-center gap-1"
+                                                            className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200 transition-colors flex items-center gap-1 cursor-pointer"
                                                             aria-label="Serie verwalten"
                                                             title="Serie verwalten"
                                                         >
@@ -1660,7 +1660,7 @@ export default function RoomsPage() {
                                                     )}
                                                     <button
                                                         onClick={() => handleDeleteBooking(group)}
-                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
                                                         aria-label="Buchung löschen"
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1692,7 +1692,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Anfragen verwalten</h2>
                             <button
                                 onClick={() => setRequestsShowPopup(false)}
-                                className="text-gray-400 hover:text-gray-600 text-3xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-3xl leading-none cursor-pointer"
                                 aria-label="Schließen"
                             >
                                 ×
@@ -1798,7 +1798,7 @@ export default function RoomsPage() {
                                                 <button
                                                     onClick={() => handleAdminAction(group, 'accept')}
                                                     className="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold 
-                                                 hover:bg-green-200 transition-colors flex items-center gap-2"
+                                                 hover:bg-green-200 transition-colors flex items-center gap-2 cursor-pointer"
                                                     aria-label="Anfrage annehmen"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1809,7 +1809,7 @@ export default function RoomsPage() {
                                                 <button
                                                     onClick={() => handleAdminAction(group, 'reject')}
                                                     className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold 
-                                                 hover:bg-red-200 transition-colors flex items-center gap-2"
+                                                 hover:bg-red-200 transition-colors flex items-center gap-2 cursor-pointer"
                                                     aria-label="Anfrage ablehnen"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1834,7 +1834,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Buchungen vorzeitig beenden</h2>
                             <button
                                 onClick={() => setShowManageSeriesPopup(false)}
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
                                 aria-label="Schließen"
                             >
                                 ×
@@ -1870,7 +1870,7 @@ export default function RoomsPage() {
                                     type="date"
                                     value={newEndDate}
                                     onChange={(e) => setNewEndDate(e.target.value)}
-                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                    className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                     min={selectedSeries.start_date}
                                     max={selectedSeries.until_date || selectedSeries.end_date}
                                 />
@@ -1896,13 +1896,13 @@ export default function RoomsPage() {
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button
                                 onClick={() => setShowManageSeriesPopup(false)}
-                                className="px-6 py-2.5 rounded-lg bg-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-400 transition-colors"
+                                className="px-6 py-2.5 rounded-lg bg-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-400 transition-colors cursor-pointer"
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handleUpdateSeries}
-                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Buchungen vorzeitig beenden
                             </button>
@@ -1918,7 +1918,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Tage / Zeitslots sperren</h2>
                             <button
                                 onClick={() => setShowBlockPopup(false)}
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
                                 aria-label="Schließen"
                             >
                                 ×
@@ -1934,7 +1934,7 @@ export default function RoomsPage() {
                                     value={blockRoomId}
                                     onChange={(e) => setBlockRoomId(Number(e.target.value))}
                                     className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
-                                               text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                               text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                 >
                                     {rooms.map((room) => (
                                         <option key={room.room_id} value={room.room_id}>
@@ -1953,7 +1953,7 @@ export default function RoomsPage() {
                                     value={blockDate}
                                     onChange={(e) => setBlockDate(e.target.value)}
                                     className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
-                                               text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                               text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                 />
                             </div>
 
@@ -1980,7 +1980,7 @@ export default function RoomsPage() {
                                             value={blockStart}
                                             onChange={(e) => setBlockStart(e.target.value)}
                                             className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
-                                                       text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                                       text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                         >
                                             {TIME_OPTIONS.map(t => (
                                                 <option key={t} value={t}>{t}</option>
@@ -1996,7 +1996,7 @@ export default function RoomsPage() {
                                             value={blockEnd}
                                             onChange={(e) => setBlockEnd(e.target.value)}
                                             className="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2.5 
-                                                       text-sm text-gray-700 focus:outline-none focus:border-[#0f692b]"
+                                                       text-sm text-gray-700 focus:outline-none focus:border-[#0f692b] cursor-pointer"
                                         >
                                             {TIME_OPTIONS.map(t => (
                                                 <option key={t} value={t}>{t}</option>
@@ -2019,11 +2019,11 @@ export default function RoomsPage() {
                                 }
                                 setShowBlockPopup(false);
                             }}
-                                className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-300 transition-colors'> Abbrechen
+                                className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-300 transition-colors cursor-pointer'> Abbrechen
                             </button>
                             <button
                                 onClick={handleBlockSubmit}
-                                className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                                className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Slot sperren
                             </button>

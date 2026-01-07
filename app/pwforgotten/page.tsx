@@ -147,7 +147,7 @@ export default function PasswordForgottenPage() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex min-w-[160px] justify-center rounded-full bg-green-700 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:min-w-[180px] sm:px-10 sm:py-3"
+              className="inline-flex min-w-[160px] justify-center rounded-full bg-green-700 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:min-w-[180px] sm:px-10 sm:py-3 cursor-pointer"
             >
               {loading ? "Wird geprüft..." : "Anfrage senden"}
             </button>
