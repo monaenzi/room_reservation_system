@@ -520,10 +520,16 @@ export default function RoomsPage() {
 
     const handleCellClick = (dateIndex: number, hour: number) => {
         if (role !== 'user' && role !== 'admin') return;
+        // if (isReserved(dateIndex, hour)) return;
 
-        if (isReserved(dateIndex, hour)) return;
-
+        //holle alle bestätigten / gesperrten slots in einer zelle
         const date = toISODate(weekDates[dateIndex]);
+        const slotsInCell = getTimeslotForCell(dateIndex, hour).filter(
+            t => t.booking_status === 1 || t.timeslot_status === 3
+        );
+
+        //zelle ist komplett frei > normale buchung
+        if(slotsInCell.length === 0){
         setSelectedDate(date);
         setSelectedHour(hour);
         setStartTime(`${hour.toString().padStart(2, '0')}:00`);
@@ -532,6 +538,49 @@ export default function RoomsPage() {
         setTimeError('');
         setReasonError('');
         setOpenBooking(true);
+        return;
+        }
+
+
+        const cellStart = hour * 60;
+        const halfPoint = cellStart + 30;
+        const cellEnd = (hour + 1) * 60;
+
+        //prüfe ob erste hälfte frei ist
+        const firstHalfFree = !slotsInCell.some(t => {
+            const startMin = timeToMinutes(t.start_time);
+            const endMin = timeToMinutes(t.end_time);
+            return startMin < halfPoint && endMin > cellStart;
+        });
+
+        //prüfe ob zweite hälfte frei ist
+        const secondHalfFree = !slotsInCell.some(t => {
+            const startMin = timeToMinutes(t.start_time);
+            const endMin = timeToMinutes(t.end_time);
+            return startMin < cellEnd && endMin > halfPoint;
+        });
+
+        //wenn die erste hälfte frei ist, kann sie normal gebucht werden
+        if(firstHalfFree){
+            setSelectedDate(date);
+            setSelectedHour(hour);
+            setStartTime(`${hour.toString().padStart(2, '0')}:00`);
+            setEndTime(`${hour.toString().padStart(2, '0')}:30`);
+            setReason('');
+            setTimeError('');
+            setReasonError('');
+            setOpenBooking(true);
+        } else if (secondHalfFree){ // wenn die zweite hälfte frei ist, kann sie normal gebucht werden
+            setSelectedDate(date);
+            setSelectedHour(hour);
+            setStartTime(`${hour.toString().padStart(2, '0')}:30`);
+            setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
+            setReason('');
+            setTimeError('');
+            setReasonError('');
+            setOpenBooking(true);
+        }
+
     };
 
     const handleStartTimeChange = (newStartTime: string) => {
@@ -929,20 +978,15 @@ export default function RoomsPage() {
         return timeslotsForRoom.some((t) => {
             const slotDateStr = normalizeSlotDate(t.slot_date);
             if (slotDateStr !== dateStr) return false;
+            if (!(t.booking_status === 1 || t.timeslot_status === 3)) return false;
 
-            const startHour = getHourFromTime(t.start_time);
-            const endHour = getHourFromTime(t.end_time);
 
             const startMinutes = timeToMinutes(t.start_time);
             const endMinutes = timeToMinutes(t.end_time);
-
             const cellStartMinutes = hour * 60;
-            const cellEndMinutes = (hour + 1) * 60 - 1;
+            const cellEndMinutes = (hour + 1) * 60;
 
-            if (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes) {
-                return t.booking_status === 1 || t.timeslot_status === 3;
-            }
-            return false;
+            return startMinutes <= cellStartMinutes && endMinutes >= cellEndMinutes;
         });
     };
 
