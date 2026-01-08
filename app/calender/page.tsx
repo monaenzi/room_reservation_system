@@ -340,7 +340,6 @@ export default function RoomsPage() {
         return 1;
     });
 
-
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getMonday(new Date()));
     const [currentDayIndex, setCurrentDayIndex] = useState(0);
     const [timeslots, setTimeslots] = useState<Timeslot[]>([]);
@@ -453,7 +452,6 @@ export default function RoomsPage() {
         }
     }, []);
 
-    // AUTO-REFRESH FUNKTIONALITÄT
     const fetchTimeslots = useCallback(async (isBackgroundRefresh = false) => {
         if (!selectedRoomId) return;
 
@@ -535,7 +533,6 @@ export default function RoomsPage() {
     };
 
     const handleCellClick = (dateIndex: number, hour: number, e?: React.MouseEvent) => {
-        //holle alle bestätigten / gesperrten slots in einer zelle
         const date = toISODate(weekDates[dateIndex]);
         const slotsInCell = getTimeslotForCell(dateIndex, hour);
 
@@ -598,8 +595,7 @@ export default function RoomsPage() {
             return;
         }
 
-        //wenn die erste hälfte frei ist, kann sie normal gebucht werden
-        if(isClickInTopHalf){
+        if (isClickInTopHalf) {
             setSelectedDate(date);
             setSelectedHour(hour);
             setStartTime(`${hour.toString().padStart(2, '0')}:00`);
@@ -608,7 +604,7 @@ export default function RoomsPage() {
             setTimeError('');
             setReasonError('');
             setOpenBooking(true);
-        } else { // wenn die zweite hälfte frei ist, kann sie normal gebucht werden
+        } else {
             setSelectedDate(date);
             setSelectedHour(hour);
             setStartTime(`${hour.toString().padStart(2, '0')}:30`);
@@ -618,7 +614,6 @@ export default function RoomsPage() {
             setReasonError('');
             setOpenBooking(true);
         }
-
     };
 
     const handleStartTimeChange = (newStartTime: string) => {
@@ -645,9 +640,8 @@ export default function RoomsPage() {
 
         let hasError = false;
 
-        // Check für Wochenende
         const selectedDateObj = new Date(selectedDate || '');
-        const dayOfWeek = selectedDateObj.getDay(); // 0 = Sonntag, 6 = Samstag
+        const dayOfWeek = selectedDateObj.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
             setTimeError('Buchungen sind nur von Montag bis Freitag möglich.');
             hasError = true;
@@ -679,7 +673,6 @@ export default function RoomsPage() {
             return;
         }
 
-        // PRÜFUNG AUF ZULETZT GEBUCHTE TERMINE
         const startH = getHourFromTime(startTime);
         const endH = getHourFromTime(endTime);
 
@@ -702,7 +695,6 @@ export default function RoomsPage() {
             return;
         }
 
-        // WIEDERKEHRENDE BUCHUNG LOGIK 
         let finalUntilDate = '';
         if (isRecurring) {
             if (twoYears) {
@@ -734,7 +726,6 @@ export default function RoomsPage() {
 
         const data = await res.json();
         if (!res.ok) {
-            // Fehlermeldung für wiederkehrende Buchungen
             if (data.message && data.message.includes('Konflikte mit bestehenden Buchungen')) {
                 setTimeError(data.message);
             } else {
@@ -752,7 +743,6 @@ export default function RoomsPage() {
         setShowUntilDate(false);
         setUntilDate('');
 
-        // Auto-refresh nutzen
         window.location.reload();
     };
 
@@ -761,11 +751,30 @@ export default function RoomsPage() {
         const isRecurring = groupedBooking.is_recurring && groupedBooking.pattern_id;
         const patternId = groupedBooking.pattern_id;
 
+        let confirmTitle = "Buchung löschen";
         let confirmMessage = "Möchten Sie diese Buchung wirklich löschen?";
-        if (isBlockedSlot) confirmMessage = "Möchten Sie diesen Slot wirklich wieder freigeben?";
-        if (isRecurring) confirmMessage = "Möchten Sie die gesamte Serie wirklich löschen?";
+        let confirmButtonText = "Löschen";
 
-        if (!confirm(confirmMessage)) return;
+        if (isBlockedSlot) {
+            confirmTitle = "Slot freigeben";
+            confirmMessage = "Möchten Sie diesen Slot wirklich wieder freigeben?";
+            confirmButtonText = "Freigeben";
+        }
+        if (isRecurring) {
+            confirmTitle = "Serie löschen";
+            confirmMessage = "Möchten Sie die gesamte Serie wirklich löschen?";
+            confirmButtonText = "Löschen";
+        }
+
+        const result = await showConfirm(
+            confirmTitle,
+            confirmMessage,
+            confirmButtonText
+        );
+
+        if (!result.isConfirmed) {
+            return;
+        }
 
         try {
             if (isBlockedSlot && role === 'admin') {
@@ -782,7 +791,7 @@ export default function RoomsPage() {
                     const error = await res.json();
                     throw new Error(error.message || 'Fehler beim Entsperren');
                 }
-                alert('Slot erfolgreich freigegeben!');
+                showSuccess('Slot erfolgreich freigegeben!');
             } else if (isRecurring) {
                 const res = await fetch(`/api/calendar?pattern_id=${patternId}`, {
                     method: 'DELETE',
@@ -950,7 +959,6 @@ export default function RoomsPage() {
         setRequestsShowPopup(true);
     };
 
-
     const handleAdminAction = async (group: GroupedBooking, action: 'accept' | 'reject') => {
         try {
             const body = group.pattern_id
@@ -1010,7 +1018,6 @@ export default function RoomsPage() {
         });
     };
 
-
     const isCurrentWeek = useMemo(() => {
         const todayMonday = getMonday(new Date());
         return currentWeekStart.toDateString() === todayMonday.toDateString();
@@ -1038,28 +1045,12 @@ export default function RoomsPage() {
             if (slotDateStr !== dateStr) return false;
             if (!(t.booking_status === 1 || t.timeslot_status === 3)) return false;
 
-
             const startMinutes = timeToMinutes(t.start_time);
             const endMinutes = timeToMinutes(t.end_time);
             const cellStartMinutes = hour * 60;
             const cellEndMinutes = (hour + 1) * 60;
 
             return startMinutes <= cellStartMinutes && endMinutes >= cellEndMinutes;
-        });
-    };
-
-    const isReservationStart = (dateIndex: number, hour: number) => {
-        const dateStr = toISODate(weekDates[dateIndex]);
-
-        return timeslotsForRoom.some((t) => {
-            const slotDateStr = normalizeSlotDate(t.slot_date);
-            if (slotDateStr !== dateStr) return false;
-
-            const startHour = getHourFromTime(t.start_time);
-            const startMinutes = timeToMinutes(t.start_time);
-
-            return startHour === hour || (startMinutes >= hour * 60 && startMinutes < (hour + 1) * 60);
-
         });
     };
 
@@ -1106,6 +1097,7 @@ export default function RoomsPage() {
 
     const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === "dark";
     const emptyBg = isDark ? "#1a2332" : "white";
+
     return (
         <>
             <main className="flex justify-center px-2 pt-25 md:px-4 pt-20 md:pt-35 pb-2 md:pb-10">
@@ -1238,69 +1230,61 @@ export default function RoomsPage() {
                                         const halfPoint = cellStartMinutes + 30;
 
                                         const firstHalfSlot = slot.find(t => {
-                                        const startMin = timeToMinutes(t.start_time);
-                                        const endMin = timeToMinutes(t.end_time);
-                                        return startMin < halfPoint && endMin > cellStartMinutes;
+                                            const startMin = timeToMinutes(t.start_time);
+                                            const endMin = timeToMinutes(t.end_time);
+                                            return startMin < halfPoint && endMin > cellStartMinutes;
                                         });
 
                                         const secondHalfSlot = slot.find(t => {
-                                        const startMin = timeToMinutes(t.start_time);
-                                        const endMin = timeToMinutes(t.end_time);
-                                        return startMin < cellEndMinutes && endMin > halfPoint;
+                                            const startMin = timeToMinutes(t.start_time);
+                                            const endMin = timeToMinutes(t.end_time);
+                                            return startMin < cellEndMinutes && endMin > halfPoint;
                                         });
 
                                         const firstHalfStarts = firstHalfSlot && timeToMinutes(firstHalfSlot.start_time) >= cellStartMinutes && timeToMinutes(firstHalfSlot.start_time) < halfPoint;
 
                                         const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
 
-
                                         const getColor = (slot: Timeslot | undefined) => {
-                                        //   const isDark = document.documentElement.dataset.theme === "dark";
+                                            if (!slot) return isDark ? "#1a2332" : "white";
 
-                                        if (!slot) return isDark ? "#1a2332" : "white";
+                                            if (slot.timeslot_status === 3)
+                                                return isDark ? "#374151" : "#d1d5db";
 
-                                        if (slot.timeslot_status === 3)
-                                            return isDark ? "#374151" : "#d1d5db";
+                                            if (slot.booking_status === 0)
+                                                return isDark ? "#e87020ff" : "#fed7aa";
 
-                                        if (slot.booking_status === 0)
-                                            return isDark ? "#e87020ff" : "#fed7aa";
+                                            if (slot.booking_status === 1)
+                                                return isDark ? "#249752ff" : "#62d88bff";
 
-                                        if (slot.booking_status === 1)
-                                            return isDark ? "#249752ff" : "#62d88bff";
-
-                                        return isDark ? "#1a2332" : "white";
+                                            return isDark ? "#1a2332" : "white";
                                         };
-
 
                                         const firstColor = getColor(firstHalfSlot);
                                         const secondColor = getColor(secondHalfSlot);
 
-                                        
-
                                         let customStyle: React.CSSProperties = {};
                                         if (firstHalfSlot && secondHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)`
                                             };
                                         } else if (firstHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)`
                                             };
                                         } else if (secondHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)`
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: "emptyBg" };
+                                            customStyle = { backgroundColor: emptyBg };
                                         }
-
 
                                         const classNames = [
                                             "relative flex min-h-[32px] items-center justify-center border-t border-[#0f692b] text-xs",
                                             idx === 0 ? "border-t-0" : "",
                                             !reserved && (role === "user" || role === "admin") ? "cursor-pointer hover:bg-[#e6f5e9]" : ""
                                         ];
-
 
                                         return (
                                             <div
@@ -1310,17 +1294,17 @@ export default function RoomsPage() {
                                                 style={customStyle}
                                             >
                                                 {firstHalfStarts && firstHalfSlot && (
-                                                <div className="absolute inset-x-1 top-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
-                                                    <span>{firstHalfSlot.username || "Belegt"}</span>
-                                                    {firstHalfSlot.timeslot_status === 3 && (
-                                                        <span className="text-[9px] font-normal">Gesperrt</span>
-                                                    )}
-                                                    {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
-                                                        <span className="text-[9px] font-normal"></span>
-                                                    )}
-                                                </div>
-                                            )}
-            
+                                                    <div className="absolute inset-x-1 top-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
+                                                        <span>{firstHalfSlot.username || "Belegt"}</span>
+                                                        {firstHalfSlot.timeslot_status === 3 && (
+                                                            <span className="text-[9px] font-normal">Gesperrt</span>
+                                                        )}
+                                                        {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal"></span>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 {secondHalfStarts && secondHalfSlot && (
                                                     <div className="absolute inset-x-1 bottom-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
                                                         <span>{secondHalfSlot.username || "Belegt"}</span>
@@ -1346,7 +1330,6 @@ export default function RoomsPage() {
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
                                 <div className="h-6 flex items-center justify-center"></div>
-                                
 
                                 {HOURS.map((hour) => (
                                     <div
@@ -1384,14 +1367,7 @@ export default function RoomsPage() {
 
                                         const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
 
-                                        const EMPTY_BG_LIGHT = "white";
-                                        const EMPTY_BG_DARK = "#1a2332";
-
-
-
                                         const getColor = (slot: Timeslot | undefined) => {
-                                        // const isDark = document.documentElement.dataset.theme === "dark";
-
                                             if (!slot) return isDark ? "#1a2332" : "white";
 
                                             if (slot.timeslot_status === 3)
@@ -1403,32 +1379,28 @@ export default function RoomsPage() {
                                             if (slot.booking_status === 1)
                                                 return isDark ? "#14532d" : "#bbf7d0";
 
-                                            return isDark ? EMPTY_BG_DARK : EMPTY_BG_LIGHT;
-                                            };
-
-
+                                            return isDark ? "#1a2332" : "white";
+                                        };
 
                                         const firstColor = getColor(firstHalfSlot);
                                         const secondColor = getColor(secondHalfSlot);
 
-
                                         let customStyle: React.CSSProperties = {};
                                         if (firstHalfSlot && secondHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)`
                                             };
                                         } else if (firstHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)`
                                             };
                                         } else if (secondHalfSlot) {
-                                            customStyle = { 
-                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
+                                            customStyle = {
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)`
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: "emptyBg" };
+                                            customStyle = { backgroundColor: emptyBg };
                                         }
-
 
                                         const classNames = [
                                             "relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]",
@@ -1454,7 +1426,7 @@ export default function RoomsPage() {
                                                         )}
                                                     </div>
                                                 )}
-            
+
                                                 {secondHalfStarts && secondHalfSlot && (
                                                     <div className="absolute inset-x-1 bottom-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
                                                         <span>{secondHalfSlot.username || "Belegt"}</span>
@@ -1469,8 +1441,6 @@ export default function RoomsPage() {
                                             </div>
                                         );
                                     })}
-                                    
-
                                 </div>
                             </div>
                         </div>
@@ -1853,8 +1823,6 @@ export default function RoomsPage() {
                                                                 {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                             </div>
                                                         </div>
-
-
                                                     </div>
 
                                                     <div>
@@ -1962,7 +1930,6 @@ export default function RoomsPage() {
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-500">Benutzer</div>
                                                         <div className="text-sm text-gray-800">
-                                                            {/* Wir müssen den Username aus den adminRequests holen */}
                                                             {adminRequests.find(r => r.user_id === group.user_id)?.username || `ID: ${group.user_id}`}
                                                         </div>
                                                     </div>
@@ -2004,7 +1971,6 @@ export default function RoomsPage() {
                                                             {formatTimeForDisplay(group.start_time)} - {formatTimeForDisplay(group.end_time)} Uhr
                                                         </div>
                                                     </div>
-
                                                 </div>
 
                                                 <div>
@@ -2228,7 +2194,6 @@ export default function RoomsPage() {
                             )}
                         </div>
 
-                        {/* Footer */}
                         <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
                             <button onClick={() => {
                                 setBlockDate('');
@@ -2240,7 +2205,7 @@ export default function RoomsPage() {
                                 }
                                 setShowBlockPopup(false);
                             }}
-                                className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-300 transition-colors cursor-pointer'> Abbrechen
+                                className='px-6 py-2.5 rounded-lg bg-gray-300 text-gray-800 text-sm font-semibold hover:bg-gray-400 transition-colors cursor-pointer'> Abbrechen
                             </button>
                             <button
                                 onClick={handleBlockSubmit}
@@ -2258,15 +2223,15 @@ export default function RoomsPage() {
                     <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                             <h2 className="text-lg font-semibold text-gray-800">Termin-Details</h2>
-                            <button 
-                                onClick={() => setShowDetailsPopup(false)} 
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
+                            <button
+                                onClick={() => setShowDetailsPopup(false)}
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
                             >
                                 &times;
                             </button>
                         </div>
                         <div className="px-5 py-6 flex-1 space-y-6">
-                            
+
                             <section>
                                 <div className="flex flex-wrap items-center gap-2 mb-2">
                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBookingStatusColor(selectedSlotDetails.booking_status ?? 1)}`}>
@@ -2327,8 +2292,8 @@ export default function RoomsPage() {
                                     onClick={() => {
                                         const deleteData: any = {
                                             ...selectedSlotDetails,
-                                            booking_ids: selectedSlotDetails.booking_id 
-                                                ? [selectedSlotDetails.booking_id] 
+                                            booking_ids: selectedSlotDetails.booking_id
+                                                ? [selectedSlotDetails.booking_id]
                                                 : [selectedSlotDetails.timeslot_id],
                                             is_recurring: selectedSlotDetails.is_recurring || false,
                                             pattern_id: (selectedSlotDetails as any).pattern_id || null
@@ -2336,14 +2301,14 @@ export default function RoomsPage() {
                                         handleDeleteBooking(deleteData);
                                         setShowDetailsPopup(false);
                                     }}
-                                    className="px-6 py-2.5 rounded-lg bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
+                                    className="px-6 py-2.5 bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
                                 >
                                     Löschen
                                 </button>
                             )}
                             <button
                                 onClick={() => setShowDetailsPopup(false)}
-                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
                                 Schließen
                             </button>
