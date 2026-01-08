@@ -482,7 +482,7 @@ export default function RoomsPage() {
 
         const intervalId = setInterval(() => {
             fetchTimeslots(true);
-        }, 10000);
+        }, 5000);
 
         return () => clearInterval(intervalId);
     }, [fetchTimeslots]);
@@ -2349,5 +2349,10 @@ export default function RoomsPage() {
                 </div>
             )}
         </>
+<<<<<<< HEAD
     );
 }
+=======
+    )
+};
+>>>>>>> bbe7fcd52604a23d10769e87e67e395daf3e3979
