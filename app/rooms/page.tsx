@@ -410,7 +410,7 @@ export default function RoomsOverviewPage() {
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     className={`fixed top-1/3 sm:top-1/5 z-50 w-14 h-16 sm:w-20 sm:h-24
             bg-[#dfeedd] border-2 border-green-700 rounded-l-2xl sm:rounded-l-4xl
-            flex flex-col items-center justify-center text-green-700 text-xl
+            flex flex-col items-center justify-center text-green-700 text-xl cursor-pointer
             shadow-lg hover:bg-[#b4cfb3] transition-all duration-300
             ${isSidebarOpen
                             ? "right-[75vw] sm:right-80 translate-x-0"
@@ -454,7 +454,7 @@ export default function RoomsOverviewPage() {
                                 setIsAddRoomOpen(true);
                                 setIsSidebarOpen(false);
                             }}
-                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors"
+                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors cursor-pointer"
                         >
                             Raum hinzufügen
                         </button>
@@ -464,7 +464,7 @@ export default function RoomsOverviewPage() {
                                 setIsDeleteRoomOpen(true);
                                 setIsSidebarOpen(false);
                             }}
-                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors"
+                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors cursor-pointer"
                         >
                             Raum löschen
                         </button>
@@ -474,7 +474,7 @@ export default function RoomsOverviewPage() {
                                 setIsHideRoomOpen(true);
                                 setIsSidebarOpen(false);
                             }}
-                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors"
+                            className="w-full px-3 py-3 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm transition-colors cursor-pointer"
                         >
                             Raum einblenden/ausblenden
                         </button>
@@ -618,13 +618,13 @@ export default function RoomsOverviewPage() {
                         <div className="p-6 border-t border-gray-200 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
                             <button
                                 onClick={handleCancel}
-                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handleAddRoom}
-                                className="flex-1 px-4 py-3 bg-[#0f692b] text-white font-medium rounded-lg hover:bg-green-800 transition-colors"
+                                className="flex-1 px-4 py-3 bg-[#0f692b] text-white font-medium rounded-lg hover:bg-green-800 transition-colors cursor-pointer"
                             >
                                 Hinzufügen
                             </button>
@@ -656,7 +656,7 @@ export default function RoomsOverviewPage() {
                                     id="select-all"
                                     checked={selectedRooms.length === rooms.length && rooms.length > 0}
                                     onChange={handleSelectAll}
-                                    className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                    className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b] cursor-pointer"
                                 />
                                 <label
                                     htmlFor="select-all"
@@ -677,7 +677,7 @@ export default function RoomsOverviewPage() {
                                             id={`room-${room.room_id}`}
                                             checked={selectedRooms.includes(room.room_id)}
                                             onChange={() => handleRoomSelection(room.room_id)}
-                                            className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                            className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b] cursor-pointer"
                                         />
                                         <label
                                             htmlFor={`room-${room.room_id}`}
@@ -715,7 +715,7 @@ export default function RoomsOverviewPage() {
                         <div className="p-6 border-t border-gray-200 flex flex-col-reverse sm:flex-row gap-3 flex-shrink-0">
                             <button
                                 onClick={handleCancelDelete}
-                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                             >
                                 Abbrechen
                             </button>
@@ -724,7 +724,7 @@ export default function RoomsOverviewPage() {
                                 disabled={selectedRooms.length === 0}
                                 className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${selectedRooms.length === 0
                                         ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                        : "bg-red-600 text-white hover:bg-red-700"
+                                        : "bg-red-600 text-white cursor-pointer hover:bg-red-700"
                                     }`}
                             >
                                 Löschen ({selectedRooms.length})
@@ -757,7 +757,7 @@ export default function RoomsOverviewPage() {
                                     id="select-all-hide"
                                     checked={roomsToHide.length === rooms.length && rooms.length > 0}
                                     onChange={handleSelectAllHide}
-                                    className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                    className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b] cursor-pointer"
                                 />
                                 <label
                                     htmlFor="select-all-hide"
@@ -781,7 +781,7 @@ export default function RoomsOverviewPage() {
                                             id={`hide-room-${room.room_id}`}
                                             checked={roomsToHide.includes(room.room_id)}
                                             onChange={() => handleHideRoomSelection(room.room_id)}
-                                            className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b]"
+                                            className="h-5 w-5 rounded border-gray-300 text-[#0f692b] focus:ring-[#0f692b] cursor-pointer"
                                         />
                                         <label
                                             htmlFor={`hide-room-${room.room_id}`}
@@ -829,7 +829,7 @@ export default function RoomsOverviewPage() {
                         <div className="p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 flex-shrink-0">
                             <button
                                 onClick={handleCancelHide}
-                                className="w-full sm:flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors order-2 sm:order-1"
+                                className="w-full sm:flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors order-2 sm:order-1 cursor-pointer"
                             >
                                 Abbrechen
                             </button>
@@ -839,7 +839,7 @@ export default function RoomsOverviewPage() {
                                     disabled={roomsToHide.length === 0}
                                     className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${roomsToHide.length === 0
                                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                            : "bg-yellow-500 text-white hover:bg-yellow-600"
+                                            : "bg-yellow-500 text-white cursor-pointer hover:bg-yellow-600"
                                         }`}
                                 >
                                     Ausblenden
@@ -849,7 +849,7 @@ export default function RoomsOverviewPage() {
                                     disabled={roomsToHide.length === 0}
                                     className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${roomsToHide.length === 0
                                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                            : "bg-green-600 text-white hover:bg-green-700"
+                                            : "bg-green-600 text-white cursor-pointer hover:bg-green-700"
                                         }`}
                                 >
                                     Einblenden

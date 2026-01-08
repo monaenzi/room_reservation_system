@@ -12,6 +12,69 @@ const pool = mariadb.createPool({
   connectionLimit: 5,
 });
 
+/** ================================
+ *  ✅ DST-SAFE DATE HELPERS (UTC)
+ *  ================================ */
+function parseISODateToUTC(dateStr: string): Date {
+  const base = (dateStr || "").split("T")[0];
+  const [y, m, d] = base.split("-").map(Number);
+  // Date.UTC => keine lokale TZ / keine DST-Effekte
+  return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+}
+
+function formatUTCDateToISO(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysUTC(date: Date, days: number): Date {
+  const d = new Date(date.getTime());
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function isWeekendUTC(date: Date): boolean {
+  const day = date.getUTCDay(); // 0=Sun, 6=Sat
+  return day === 0 || day === 6;
+}
+
+function minDate(a: Date, b: Date): Date {
+  return a.getTime() <= b.getTime() ? a : b;
+}
+
+function generateRecurringDates(
+  startDate: string,
+  untilDate: string,
+  frequency: "daily" | "weekly",
+  maxYears: number
+): string[] {
+  const dates: string[] = [];
+
+  const start = parseISODateToUTC(startDate);
+  const until = parseISODateToUTC(untilDate);
+
+  // maxDate = "jetzt + maxYears" (UTC), damit 2 Jahre Limit DST-sicher ist
+  const now = new Date();
+  const maxDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  maxDate.setUTCFullYear(maxDate.getUTCFullYear() + maxYears);
+
+  const effectiveUntil = minDate(until, maxDate);
+
+  let current = new Date(start.getTime());
+
+  while (current.getTime() <= effectiveUntil.getTime()) {
+    if (!isWeekendUTC(current)) {
+      dates.push(formatUTCDateToISO(current));
+    }
+
+    current = addDaysUTC(current, frequency === "daily" ? 1 : 7);
+  }
+
+  return dates;
+}
+
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
   const action = req.nextUrl.searchParams.get("action");
@@ -138,8 +201,8 @@ export async function POST(req: NextRequest) {
       end_time,
       reason,
       is_recurring = false,
-      frequency = 'daily',
-      until_date = null
+      frequency = "daily",
+      until_date = null,
     } = body;
 
     if (!user_id || !room_id || !slot_date || !start_time || !end_time || !reason) {
@@ -196,7 +259,6 @@ export async function POST(req: NextRequest) {
     `
     );
 
-    // VERBESSERTE PRÜFUNG FÜR ÜBERLAPPUNGEN (als separate Funktion)
     const checkOverlap = async (date: string, connection: mariadb.PoolConnection) => {
       const existing = await connection.query(
         `SELECT * FROM timeslot 
@@ -219,7 +281,6 @@ export async function POST(req: NextRequest) {
     };
 
     if (is_recurring) {
-      // ZUERST: Generiere alle Daten
       const generatedDates = generateRecurringDates(
         normalizedDate,
         until_date,
@@ -227,35 +288,37 @@ export async function POST(req: NextRequest) {
         RECURRING_BOOKING_MAX_YEARS
       );
 
-      // PRÜFE ALLE DATEN AUF KONFLIKTE
       const conflictingDates: string[] = [];
 
       for (const date of generatedDates) {
         const hasConflict = await checkOverlap(date, conn);
-        if (hasConflict) {
-          conflictingDates.push(date);
-        }
+        if (hasConflict) conflictingDates.push(date);
       }
 
-      // WENN ES KONFLIKTE GIBT: ABBRECHEN
       if (conflictingDates.length > 0) {
         const conflictList = conflictingDates
           .slice(0, 5)
-          .map(d => new Date(d).toLocaleDateString('de-DE'))
-          .join(', ');
+          .map((d) => {
+            // d ist bereits YYYY-MM-DD korrekt
+            const [y, m, day] = d.split("-").map(Number);
+            return new Date(y, (m || 1) - 1, day || 1).toLocaleDateString("de-DE");
+          })
+          .join(", ");
 
-        const additional = conflictingDates.length > 5 ? ` und ${conflictingDates.length - 5} weitere` : '';
+        const additional =
+          conflictingDates.length > 5
+            ? ` und ${conflictingDates.length - 5} weitere`
+            : "";
 
         return NextResponse.json(
           {
             message: `Es gibt Konflikte mit bestehenden Buchungen an folgenden Tagen: ${conflictList}${additional}. 
-                      Die gesamte wiederkehrende Buchung wurde abgebrochen.`
+                      Die gesamte wiederkehrende Buchung wurde abgebrochen.`,
           },
           { status: 409 }
         );
       }
 
-      // WENN KEINE KONFLIKTE: Pattern erstellen
       const patternResult: any = await conn.query(
         "INSERT INTO recurring_pattern (frequency, start_date, end_date, until_date) VALUES (?, ?, ?, ?)",
         [frequency, normalizedDate, until_date, until_date]
@@ -263,10 +326,9 @@ export async function POST(req: NextRequest) {
 
       const pattern_id = Number(patternResult.insertId);
 
-      const bookings = [];
+      const bookings: any[] = [];
       let successfulBookings = 0;
 
-      // Transaktion für alle Buchungen
       try {
         await conn.query("START TRANSACTION");
 
@@ -287,7 +349,7 @@ export async function POST(req: NextRequest) {
           bookings.push({
             date,
             timeslot_id: Number(timeslotResult.insertId),
-            booking_id: Number(bookingResult.insertId)
+            booking_id: Number(bookingResult.insertId),
           });
         }
 
@@ -296,7 +358,6 @@ export async function POST(req: NextRequest) {
         await conn.query("ROLLBACK");
         console.error("Fehler beim Erstellen der wiederkehrenden Buchungen:", error);
 
-        // Pattern löschen, da Buchungen fehlgeschlagen sind
         await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
 
         return NextResponse.json(
@@ -305,10 +366,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const safeBookings = bookings.map(booking => ({
+      const safeBookings = bookings.map((booking) => ({
         ...booking,
         timeslot_id: Number(booking.timeslot_id),
-        booking_id: Number(booking.booking_id)
+        booking_id: Number(booking.booking_id),
       }));
 
       return NextResponse.json(
@@ -319,13 +380,12 @@ export async function POST(req: NextRequest) {
           pattern_id: pattern_id,
           booking_status: bookingStatus,
           frequency: frequency,
-          bookings: safeBookings
+          bookings: safeBookings,
         },
         { status: 201 }
       );
     }
 
-    // FÜR EINZELNE BUCHUNG: Prüfen auf Überlappung
     const hasConflict = await checkOverlap(normalizedDate, conn);
     if (hasConflict) {
       const existing = await conn.query(
@@ -337,13 +397,16 @@ export async function POST(req: NextRequest) {
       );
 
       const conflictInfo = existing[0];
-      const conflictTime = conflictInfo ?
-        `${conflictInfo.start_time.substring(0, 5)}-${conflictInfo.end_time.substring(0, 5)}` : '';
-      const conflictReason = conflictInfo?.blocked_reason || conflictInfo?.reason || 'Belegt';
+      const conflictTime = conflictInfo
+        ? `${conflictInfo.start_time.substring(0, 5)}-${conflictInfo.end_time.substring(0, 5)}`
+        : "";
+      const conflictReason =
+        conflictInfo?.blocked_reason || conflictInfo?.reason || "Belegt";
 
       return NextResponse.json(
         {
-          message: `Dieser Zeitraum ist bereits belegt ${conflictTime ? `(${conflictTime}: ${conflictReason})` : ''}.`
+          message: `Dieser Zeitraum ist bereits belegt ${conflictTime ? `(${conflictTime}: ${conflictReason})` : ""
+            }.`,
         },
         { status: 409 }
       );
@@ -385,35 +448,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function generateRecurringDates(startDate: string, untilDate: string, frequency: 'daily' | 'weekly', maxYears: number): string[] {
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  const until = new Date(untilDate);
-
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() + maxYears);
-  const effectiveUntil = until < maxDate ? until : maxDate;
-
-  let currentDate = new Date(start);
-
-  while (currentDate <= effectiveUntil) {
-    const dayOfWeek = currentDate.getDay(); // 0 = Sonntag, 6 = Samstag
-
-    // Überspringe Wochenenden (nur Montag-Freitag)
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      dates.push(currentDate.toISOString().split('T')[0]);
-    }
-
-    if (frequency === 'daily') {
-      currentDate.setDate(currentDate.getDate() + 1);
-    } else {
-      currentDate.setDate(currentDate.getDate() + 7);
-    }
-  }
-
-  return dates;
-}
-
 export async function PUT(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 
@@ -422,15 +456,11 @@ export async function PUT(req: NextRequest) {
     const { action, booking_id, booking_ids, pattern_id, end_date } = body;
 
     if (!action) {
-      return NextResponse.json(
-        { message: "action ist erforderlich." },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "action ist erforderlich." }, { status: 400 });
     }
 
     conn = await pool.getConnection();
 
-    // 🔹 Vergangene PENDING-Buchungen automatisch auf bestätigt setzen
     await conn.query(`
       UPDATE booking b
       JOIN timeslot t ON b.timeslot_id = t.timeslot_id
@@ -439,12 +469,7 @@ export async function PUT(req: NextRequest) {
         AND TIMESTAMP(t.slot_date, t.start_time) < NOW()
     `);
 
-    /* ==========================================================
-       ✅ ACCEPT
-    ========================================================== */
     if (action === "accept") {
-
-      // ===== Serienbuchung =====
       if (pattern_id) {
         const [row] = await conn.query(
           `
@@ -486,7 +511,6 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Serie angenommen." });
       }
 
-      // ===== Mehrere Einzelbuchungen =====
       if (Array.isArray(booking_ids) && booking_ids.length > 0) {
         await conn.query(
           `
@@ -502,7 +526,6 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Buchungen angenommen." });
       }
 
-      // ===== Einzelbuchung =====
       if (booking_id) {
         const [row] = await conn.query(
           `
@@ -540,12 +563,7 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    /* ==========================================================
-       ❌ REJECT
-    ========================================================== */
     if (action === "reject") {
-
-      // ===== Serienbuchung =====
       if (pattern_id) {
         await conn.query(
           `
@@ -558,15 +576,11 @@ export async function PUT(req: NextRequest) {
           [pattern_id]
         );
 
-        await conn.query(
-          `DELETE FROM recurring_pattern WHERE pattern_id = ?`,
-          [pattern_id]
-        );
+        await conn.query(`DELETE FROM recurring_pattern WHERE pattern_id = ?`, [pattern_id]);
 
         return NextResponse.json({ message: "Serie abgelehnt." });
       }
 
-      // ===== Mehrere Einzelbuchungen =====
       if (Array.isArray(booking_ids) && booking_ids.length > 0) {
         await conn.query(
           `
@@ -581,7 +595,6 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Buchungen abgelehnt." });
       }
 
-      // ===== Einzelbuchung =====
       if (booking_id) {
         await conn.query(
           `
@@ -597,9 +610,6 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    /* ==========================================================
-       🔁 UPDATE END DATE
-    ========================================================== */
     if (action === "update_end_date" && pattern_id && end_date) {
       await conn.query(
         `UPDATE recurring_pattern SET end_date = ?, until_date = ? WHERE pattern_id = ?`,
@@ -621,7 +631,6 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ message: "Ungültige Aktion." }, { status: 400 });
-
   } catch (err) {
     console.error("PUT /calendar Fehler:", err);
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
@@ -763,10 +772,7 @@ export async function PATCH(req: NextRequest) {
     );
 
     return NextResponse.json(
-      {
-        message: "Timeslot erfolgreich gesperrt.",
-        timeslot_id: Number(result.insertId),
-      },
+      { message: "Timeslot erfolgreich gesperrt.", timeslot_id: Number(result.insertId) },
       { status: 201 }
     );
   } catch (err) {

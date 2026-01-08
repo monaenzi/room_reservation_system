@@ -171,7 +171,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex min-w-[140px] justify-center rounded-full bg-green-700 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:min-w-[160px] sm:px-10 sm:py-3"
+              className="inline-flex min-w-[140px] justify-center rounded-full bg-green-700 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 cursor-pointer disabled:cursor-not-allowed disabled:bg-green-700/70 sm:min-w-[160px] sm:px-10 sm:py-3"
             >
               {loading ? "Wird geprüft..." : "Login"}
             </button>
