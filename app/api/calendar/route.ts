@@ -23,6 +23,14 @@ export async function GET(req: NextRequest) {
   try {
     conn = await pool.getConnection();
 
+    await conn.query(`
+      UPDATE booking b
+      JOIN timeslot t ON b.timeslot_id = t.timeslot_id
+      SET b.booking_status = 1
+      WHERE b.booking_status = 0
+        AND TIMESTAMP(t.slot_date, t.start_time) < NOW()
+    `);
+
     if (user_id) {
       const userBookings = await conn.query(
         `
