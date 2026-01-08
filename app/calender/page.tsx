@@ -1277,7 +1277,7 @@ export default function RoomsPage() {
                                                 background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)`
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: emptyBg };
+                                            customStyle = { backgroundColor: "emptyBg" };
                                         }
 
                                         const classNames = [
@@ -1399,7 +1399,7 @@ export default function RoomsPage() {
                                                 background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)`
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: emptyBg };
+                                            customStyle = { backgroundColor: "emptyBg" };
                                         }
 
                                         const classNames = [
