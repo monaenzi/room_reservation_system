@@ -794,7 +794,7 @@ export default function RoomsPage() {
                 }
                 showSuccess('Buchungen erfolgreich gelöscht!');
             } else {
-                const idsToDelete = groupedBooking.booking_ids || [groupedBooking.booking_id || groupedBooking.timeslot_id];
+                const idsToDelete = groupedBooking.booking_ids || [groupedBooking.booking_ids || groupedBooking.timeslot_id];
 
                 for (const id of idsToDelete) {
                     if (!id) continue;

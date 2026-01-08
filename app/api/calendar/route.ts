@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
 import nodemailer from 'nodemailer';
@@ -1732,6 +1733,8 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    conn = await pool.getConnection();
+
     const normalizedDate =
       typeof slot_date === "string" && slot_date.includes("T")
         ? slot_date.split("T")[0]
@@ -1752,11 +1755,11 @@ export async function PATCH(req: NextRequest) {
     await updatePastPendingBookings(conn);
 
     const existing = await conn.query(
-      `SELECT * FROM timeslot 
-       WHERE room_id = ? 
-         AND slot_date = ? 
-         AND start_time < ? 
-         AND end_time > ? 
+      `SELECT * FROM timeslot
+       WHERE room_id = ?
+         AND slot_date = ?
+         AND start_time < ?
+         AND end_time > ?
          AND timeslot_status IN (1, 2, 3)`,
       [room_id, normalizedDate, end_time, start_time]
     );
