@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import mariadb from "mariadb";
+import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
 const RECURRING_BOOKING_MAX_YEARS = 2;
 
@@ -11,69 +14,6 @@ const pool = mariadb.createPool({
   database: process.env.DB_NAME,
   connectionLimit: 5,
 });
-
-/** ================================
- *  ✅ DST-SAFE DATE HELPERS (UTC)
- *  ================================ */
-function parseISODateToUTC(dateStr: string): Date {
-  const base = (dateStr || "").split("T")[0];
-  const [y, m, d] = base.split("-").map(Number);
-  // Date.UTC => keine lokale TZ / keine DST-Effekte
-  return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
-}
-
-function formatUTCDateToISO(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDaysUTC(date: Date, days: number): Date {
-  const d = new Date(date.getTime());
-  d.setUTCDate(d.getUTCDate() + days);
-  return d;
-}
-
-function isWeekendUTC(date: Date): boolean {
-  const day = date.getUTCDay(); // 0=Sun, 6=Sat
-  return day === 0 || day === 6;
-}
-
-function minDate(a: Date, b: Date): Date {
-  return a.getTime() <= b.getTime() ? a : b;
-}
-
-function generateRecurringDates(
-  startDate: string,
-  untilDate: string,
-  frequency: "daily" | "weekly",
-  maxYears: number
-): string[] {
-  const dates: string[] = [];
-
-  const start = parseISODateToUTC(startDate);
-  const until = parseISODateToUTC(untilDate);
-
-  // maxDate = "jetzt + maxYears" (UTC), damit 2 Jahre Limit DST-sicher ist
-  const now = new Date();
-  const maxDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  maxDate.setUTCFullYear(maxDate.getUTCFullYear() + maxYears);
-
-  const effectiveUntil = minDate(until, maxDate);
-
-  let current = new Date(start.getTime());
-
-  while (current.getTime() <= effectiveUntil.getTime()) {
-    if (!isWeekendUTC(current)) {
-      dates.push(formatUTCDateToISO(current));
-    }
-
-    current = addDaysUTC(current, frequency === "daily" ? 1 : 7);
-  }
-
-  return dates;
-}
 
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
@@ -141,6 +81,8 @@ export async function GET(req: NextRequest) {
           t.end_time,
           t.timeslot_status,
           u.username,
+          u.email,
+          u.first_name,
           r.room_name,
           rp.end_date as until_date,
           rp.frequency
@@ -243,10 +185,7 @@ export async function POST(req: NextRequest) {
         : slot_date;
 
     const canBook = await conn.query(
-      `
-      SELECT 
-        TIMESTAMP(?, ?) >= NOW() AS ok
-    `,
+      `SELECT TIMESTAMP(?, ?) >= NOW() AS ok`,
       [normalizedDate, start_time]
     );
 
@@ -267,6 +206,7 @@ export async function POST(req: NextRequest) {
     `
     );
 
+    // VERBESSERTE PRÜFUNG FÜR ÜBERLAPPUNGEN (als separate Funktion)
     const checkOverlap = async (date: string, connection: mariadb.PoolConnection) => {
       const existing = await connection.query(
         `SELECT * FROM timeslot 
@@ -300,7 +240,9 @@ export async function POST(req: NextRequest) {
 
       for (const date of generatedDates) {
         const hasConflict = await checkOverlap(date, conn);
-        if (hasConflict) conflictingDates.push(date);
+        if (hasConflict) {
+          conflictingDates.push(date);
+        }
       }
 
       if (conflictingDates.length > 0) {
@@ -334,7 +276,7 @@ export async function POST(req: NextRequest) {
 
       const pattern_id = Number(patternResult.insertId);
 
-      const bookings: any[] = [];
+      const bookings = [];
       let successfulBookings = 0;
 
       try {
@@ -394,6 +336,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // FÜR EINZELNE BUCHUNG: Prüfen auf Überlappung
     const hasConflict = await checkOverlap(normalizedDate, conn);
     if (hasConflict) {
       const existing = await conn.query(
@@ -469,6 +412,7 @@ export async function PUT(req: NextRequest) {
 
     conn = await pool.getConnection();
 
+    // 🔹 Vergangene PENDING-Buchungen automatisch auf bestätigt setzen
     await conn.query(`
       UPDATE booking b
       JOIN timeslot t ON b.timeslot_id = t.timeslot_id
@@ -477,7 +421,12 @@ export async function PUT(req: NextRequest) {
         AND TIMESTAMP(t.slot_date, t.start_time) < NOW()
     `);
 
+    /* ==========================================================
+       ✅ ACCEPT
+    ========================================================== */
     if (action === "accept") {
+
+      // ===== Serienbuchung =====
       if (pattern_id) {
         const [row] = await conn.query(
           `
@@ -519,6 +468,7 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Serie angenommen." });
       }
 
+      // ===== Mehrere Einzelbuchungen =====
       if (Array.isArray(booking_ids) && booking_ids.length > 0) {
         await conn.query(
           `
@@ -534,6 +484,7 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Buchungen angenommen." });
       }
 
+      // ===== Einzelbuchung =====
       if (booking_id) {
         const [row] = await conn.query(
           `
@@ -571,7 +522,12 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    /* ==========================================================
+       ❌ REJECT
+    ========================================================== */
     if (action === "reject") {
+
+      // ===== Serienbuchung =====
       if (pattern_id) {
         await conn.query(
           `
@@ -584,11 +540,15 @@ export async function PUT(req: NextRequest) {
           [pattern_id]
         );
 
-        await conn.query(`DELETE FROM recurring_pattern WHERE pattern_id = ?`, [pattern_id]);
+        await conn.query(
+          `DELETE FROM recurring_pattern WHERE pattern_id = ?`,
+          [pattern_id]
+        );
 
         return NextResponse.json({ message: "Serie abgelehnt." });
       }
 
+      // ===== Mehrere Einzelbuchungen =====
       if (Array.isArray(booking_ids) && booking_ids.length > 0) {
         await conn.query(
           `
@@ -603,6 +563,7 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ message: "Buchungen abgelehnt." });
       }
 
+      // ===== Einzelbuchung =====
       if (booking_id) {
         await conn.query(
           `
@@ -618,6 +579,9 @@ export async function PUT(req: NextRequest) {
       }
     }
 
+    /* ==========================================================
+       🔁 UPDATE END DATE
+    ========================================================== */
     if (action === "update_end_date" && pattern_id && end_date) {
       await conn.query(
         `UPDATE recurring_pattern SET end_date = ?, until_date = ? WHERE pattern_id = ?`,
@@ -639,9 +603,13 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ message: "Ungültige Aktion." }, { status: 400 });
+
   } catch (err) {
     console.error("PUT /calendar Fehler:", err);
-    return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
+    return NextResponse.json(
+      { message: err.message || "Interner Serverfehler." },
+      { status: err.message ? 400 : 500 }
+    );
   } finally {
     if (conn) conn.release();
   }
@@ -664,6 +632,9 @@ export async function DELETE(req: NextRequest) {
     conn = await pool.getConnection();
 
     if (pattern_id) {
+      const userRows = await getUserEmailData(conn, parseInt(pattern_id));
+      const userData = userRows[0];
+
       const bookings = await conn.query(
         `SELECT b.timeslot_id FROM booking b WHERE b.pattern_id = ?`,
         [pattern_id]
@@ -680,11 +651,32 @@ export async function DELETE(req: NextRequest) {
 
       await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
 
+      if (userData) {
+        await sendBookingNotificationEmail(
+          userData.email,
+          userData.first_name,
+          'rejected',
+          {
+            roomName: userData.room_name,
+            date: userData.slot_date,
+            startTime: userData.start_time,
+            endTime: userData.end_time,
+            reason: userData.reason,
+            isRecurring: userData.is_recurring,
+            untilDate: userData.until_date,
+            patternId: parseInt(pattern_id)
+          }
+        );
+      }
+
       return NextResponse.json({
         message: "Serie erfolgreich gelöscht.",
         pattern_id: Number(pattern_id),
       });
     } else {
+      const userRows = await getUserEmailData(conn, undefined, undefined, parseInt(booking_id!));
+      const userData = userRows[0];
+
       const bookingInfo = await conn.query(
         `SELECT b.timeslot_id FROM booking b WHERE b.booking_id = ?`,
         [booking_id]
@@ -698,6 +690,21 @@ export async function DELETE(req: NextRequest) {
 
       await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
       await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
+
+      if (userData) {
+        await sendBookingNotificationEmail(
+          userData.email,
+          userData.first_name,
+          'rejected',
+          {
+            roomName: userData.room_name,
+            date: userData.slot_date,
+            startTime: userData.start_time,
+            endTime: userData.end_time,
+            reason: userData.reason
+          }
+        );
+      }
 
       return NextResponse.json({
         message: "Buchung erfolgreich gelöscht.",
@@ -752,10 +759,7 @@ export async function PATCH(req: NextRequest) {
         : slot_date;
 
     const canBlock = await conn.query(
-      `
-      SELECT 
-        TIMESTAMP(?, ?) >= NOW() AS ok
-    `,
+      `SELECT TIMESTAMP(?, ?) >= NOW() AS ok`,
       [normalizedDate, start_time]
     );
 
@@ -766,15 +770,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    await conn.query(
-      `
-      UPDATE booking b
-      JOIN timeslot t ON b.timeslot_id = t.timeslot_id
-      SET b.booking_status = 1
-      WHERE b.booking_status = 0
-        AND TIMESTAMP(t.slot_date, t.start_time) < NOW()
-    `
-    );
+    await updatePastPendingBookings(conn);
 
     const existing = await conn.query(
       `SELECT * FROM timeslot 
