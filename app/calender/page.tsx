@@ -23,6 +23,7 @@ type Timeslot = {
     is_recurring?: boolean;
     pattern_id?: number | null;
     frequency?: string;
+    booking_id?: number;
 };
 
 type BookingRequest = {
@@ -568,6 +569,7 @@ export default function RoomsPage() {
             if (extraData) {
                 setSelectedSlotDetails({
                     ...occupiedSlotAtPosition,
+                    booking_id: extraData.booking_id,
                     is_recurring: extraData.is_recurring,
                     frequency: extraData.frequency,
                     pattern_id: extraData.pattern_id
@@ -754,23 +756,22 @@ export default function RoomsPage() {
         setUntilDate('');
 
         // Auto-refresh nutzen
-        fetchTimeslots();
+        window.location.reload();
     };
 
     const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
-        const isBlockedSlot = groupedBooking.timeslot_status === 3 || groupedBooking.booking_status === undefined;
-        if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
-            if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
-                return;
-            }
-        } else {
-            if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
-                return;
-            }
-        }
+        const isBlockedSlot = groupedBooking.timeslot_status === 3;
+        const isRecurring = groupedBooking.is_recurring && groupedBooking.pattern_id;
+        const patternId = groupedBooking.pattern_id;
+
+        let confirmMessage = "Möchten Sie diese Buchung wirklich löschen?";
+        if (isBlockedSlot) confirmMessage = "Möchten Sie diesen Slot wirklich wieder freigeben?";
+        if (isRecurring) confirmMessage = "Möchten Sie die gesamte Serie wirklich löschen?";
+
+        if (!confirm(confirmMessage)) return;
 
         try {
-            if (isBlockedSlot && (role === 'admin')) {
+            if (isBlockedSlot && role === 'admin') {
                 const res = await fetch(`/api/calendar`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -785,19 +786,22 @@ export default function RoomsPage() {
                     throw new Error(error.message || 'Fehler beim Entsperren');
                 }
                 alert('Slot erfolgreich freigegeben!');
-            } else if (groupedBooking.pattern_id) {
-                const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
+            } else if (isRecurring) {
+                const res = await fetch(`/api/calendar?pattern_id=${patternId}`, {
                     method: 'DELETE',
                 });
 
                 if (!res.ok) {
                     const error = await res.json();
-                    throw new Error(error.message || 'Fehler beim Löschen');
+                    throw new Error(error.message || 'Fehler beim Löschen der Routine');
                 }
                 alert('Buchungen erfolgreich gelöscht!');
             } else {
-                for (const bookingId of groupedBooking.booking_ids) {
-                    const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
+                const idsToDelete = groupedBooking.booking_ids || [groupedBooking.booking_id || groupedBooking.timeslot_id];
+
+                for (const id of idsToDelete) {
+                    if (!id) continue;
+                    const res = await fetch(`/api/calendar?booking_id=${id}`, {
                         method: 'DELETE',
                     });
 
@@ -809,8 +813,8 @@ export default function RoomsPage() {
                 alert('Buchung erfolgreich gelöscht!');
             }
 
-            loadUserBookings();
-            fetchTimeslots();
+            await loadUserBookings();
+            await fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Löschen:', err);
@@ -2320,7 +2324,9 @@ export default function RoomsPage() {
                                     onClick={() => {
                                         const deleteData: any = {
                                             ...selectedSlotDetails,
-                                            booking_ids: [selectedSlotDetails.timeslot_id],
+                                            booking_ids: selectedSlotDetails.booking_id 
+                                                ? [selectedSlotDetails.booking_id] 
+                                                : [selectedSlotDetails.timeslot_id],
                                             is_recurring: selectedSlotDetails.is_recurring || false,
                                             pattern_id: (selectedSlotDetails as any).pattern_id || null
                                         };
