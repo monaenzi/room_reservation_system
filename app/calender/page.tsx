@@ -2260,7 +2260,7 @@ export default function RoomsPage() {
                             <h2 className="text-lg font-semibold text-gray-800">Termin-Details</h2>
                             <button 
                                 onClick={() => setShowDetailsPopup(false)} 
-                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer"
                             >
                                 &times;
                             </button>
@@ -2336,14 +2336,14 @@ export default function RoomsPage() {
                                         handleDeleteBooking(deleteData);
                                         setShowDetailsPopup(false);
                                     }}
-                                    className="px-6 py-2.5 rounded-lg bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                    className="px-6 py-2.5 rounded-lg bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1 cursor-pointer"
                                 >
                                     Löschen
                                 </button>
                             )}
                             <button
                                 onClick={() => setShowDetailsPopup(false)}
-                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Schließen
                             </button>
