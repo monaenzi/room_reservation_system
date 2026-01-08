@@ -1298,7 +1298,7 @@ export default function RoomsPage() {
                                         return (
                                             <div
                                                 key={hour}
-                                                onClick={() => handleCellClick(dateIndex, hour)}
+                                                onClick={(e) => handleCellClick(dateIndex, hour, e)}
                                                 className={classNames.filter(Boolean).join(" ")}
                                                 style={customStyle}
                                             >
@@ -1432,7 +1432,7 @@ export default function RoomsPage() {
                                         return (
                                             <div
                                                 key={hour}
-                                                onClick={() => handleCellClick(currentDayIndex, hour)}
+                                                onClick={(e) => handleCellClick(currentDayIndex, hour, e)}
                                                 className={classNames.filter(Boolean).join(" ")}
                                                 style={customStyle}
                                             >
