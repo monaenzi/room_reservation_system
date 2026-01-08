@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { showAlert, showError, showSuccess } from '@/utils/alertHelper';
 
 type Role = "guest" | "user" | "admin";
 
@@ -122,13 +123,13 @@ export default function RoomsOverviewPage() {
 
     const handleAddRoom = async () => {
         if (!roomName) {
-            alert("Raumname ist erforderlich.");
+            showError("Raumname ist erforderlich.");
             return;
         }
 
         const capacityNum = parseInt(roomCapacity, 10);
         if (roomCapacity && (isNaN(capacityNum) || capacityNum <= 0)) {
-            alert("Die Kapazität muss eine positive, ganze Zahl sein.");
+            showError("Die Kapazität muss eine positive, ganze Zahl sein.");
             return;
         }
 
@@ -154,12 +155,14 @@ export default function RoomsOverviewPage() {
                 await fetchRooms();
                 resetForm();
                 setIsAddRoomOpen(false);
+                showSuccess("Raum erfolgreich hinzugefügt!");
             } else {
                 const err = await res.json();
-                alert(`Fehler : ${err.message}`);
+                showError(`Fehler: ${err.message}`);
             }
         } catch (err) {
             console.error("Error adding room", err);
+            showError("Fehler beim Hinzufügen des Raums.");
         }
     };
 
@@ -175,7 +178,7 @@ export default function RoomsOverviewPage() {
 
     const handleDeleteRooms = async () => {
         if (!userId) {
-            alert("Sitzung ungültig - bitte erneut anmelden.");
+            showError("Sitzung ungültig - bitte erneut anmelden.");
             return;
         }
 
@@ -198,9 +201,10 @@ export default function RoomsOverviewPage() {
             await fetchRooms();
             setSelectedRooms([]);
             setIsDeleteRoomOpen(false);
+            showSuccess(`${selectedRooms.length} Raum/äume erfolgreich gelöscht!`);
         } catch (err) {
             console.error("Error deleting rooms", err);
-            alert("Fehler beim Löschen der Räume.");
+            showError("Fehler beim Löschen der Räume.");
         }
     };
 
@@ -224,7 +228,7 @@ export default function RoomsOverviewPage() {
 
     const updateRoomVisibility = async (ids: number[], isVisible: boolean) => {
         if (!userId) {
-            alert("Sitzung ungültig - bitte erneut anmelden.");
+            showError("Sitzung ungültig - bitte erneut anmelden.");
             return;
         }
 
@@ -247,7 +251,7 @@ export default function RoomsOverviewPage() {
             await fetchRooms();
         } catch (err) {
             console.error("Error updating room visibility", err);
-            alert("Fehler beim Aktualisieren der Sichtbarkeit.");
+            showError("Fehler beim Aktualisieren der Sichtbarkeit.");
         }
     };
 
@@ -255,12 +259,14 @@ export default function RoomsOverviewPage() {
         await updateRoomVisibility(roomsToHide, false);
         setRoomsToHide([]);
         setIsHideRoomOpen(false);
+        showSuccess(`${roomsToHide.length} Raum/äume erfolgreich ausgeblendet!`);
     };
 
     const handleUnhideRooms = async () => {
         await updateRoomVisibility(roomsToHide, true);
         setRoomsToHide([]);
         setIsHideRoomOpen(false);
+        showSuccess(`${roomsToHide.length} Raum/äume erfolgreich eingeblendet!`);
     };
 
     const handleSelectAllHide = () => {

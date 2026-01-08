@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { showAlert, showConfirm, showSuccess, showError, bookingSuccess } from '@/utils/alertHelper';
 
 const RECURRING_BOOKING_MAX_YEARS = 2;
 
@@ -522,7 +523,7 @@ export default function RoomsPage() {
             setGroupedUserBookings(grouped);
         } catch (err) {
             console.error('Fehler beim Laden der User-Buchungen:', err);
-            alert('Fehler beim Laden der Buchungen');
+            showError('Fehler beim Laden der Buchungen');
         } finally {
             setIsLoadingUserBookings(false);
         }
@@ -695,7 +696,7 @@ export default function RoomsPage() {
         });
 
         if (isInterfering) {
-            alert("Dieser Termin wurde soeben von jemand anderem gebucht. Der Kalender wird aktualisiert.");
+            showAlert('Info', "Dieser Termin wurde soeben von jemand anderem gebucht. Der Kalender wird aktualisiert.");
             setOpenBooking(false);
             fetchTimeslots();
             return;
@@ -742,11 +743,7 @@ export default function RoomsPage() {
             return;
         }
 
-        if (isRecurring) {
-            alert('Wiederkehrende Buchung erfolgreich erstellt!');
-        } else {
-            alert('Buchung erfolgreich!');
-        }
+        bookingSuccess(isRecurring);
 
         setOpenBooking(false);
         setIsRecurring(false);
@@ -795,7 +792,7 @@ export default function RoomsPage() {
                     const error = await res.json();
                     throw new Error(error.message || 'Fehler beim Löschen der Routine');
                 }
-                alert('Buchungen erfolgreich gelöscht!');
+                showSuccess('Buchungen erfolgreich gelöscht!');
             } else {
                 const idsToDelete = groupedBooking.booking_ids || [groupedBooking.booking_id || groupedBooking.timeslot_id];
 
@@ -810,7 +807,7 @@ export default function RoomsPage() {
                         throw new Error(error.message || 'Fehler beim Löschen');
                     }
                 }
-                alert('Buchung erfolgreich gelöscht!');
+                showSuccess('Buchung erfolgreich gelöscht!');
             }
 
             await loadUserBookings();
@@ -818,7 +815,7 @@ export default function RoomsPage() {
 
         } catch (err) {
             console.error('Fehler beim Löschen:', err);
-            alert(err instanceof Error ? err.message : 'Fehler beim Löschen');
+            showError(err instanceof Error ? err.message : 'Fehler beim Löschen');
         }
     };
 
@@ -833,7 +830,7 @@ export default function RoomsPage() {
         if (!selectedSeries || !selectedSeries.pattern_id) return;
 
         if (!newEndDate) {
-            alert('Bitte wählen Sie ein Enddatum aus.');
+            showError('Bitte wählen Sie ein Enddatum aus.');
             return;
         }
 
@@ -841,11 +838,17 @@ export default function RoomsPage() {
         const currentEndDateObj = new Date(selectedSeries.until_date || selectedSeries.end_date);
 
         if (newEndDateObj > currentEndDateObj) {
-            alert('Das neue Enddatum darf nicht nach dem aktuellen Enddatum liegen.');
+            showError('Das neue Enddatum darf nicht nach dem aktuellen Enddatum liegen.');
             return;
         }
 
-        if (!confirm(`Möchten Sie die Buchungen wirklich am ${newEndDate} beenden?\n\nBereits gebuchte Termine nach diesem Datum werden dauerhaft gelöscht.`)) {
+        const result = await showConfirm(
+            'Buchungen vorzeitig beenden',
+            `Möchten Sie die Buchungen wirklich am ${newEndDate} beenden?\n\nBereits gebuchte Termine nach diesem Datum werden dauerhaft gelöscht.`,
+            'Beenden'
+        );
+
+        if (!result.isConfirmed) {
             return;
         }
 
@@ -865,19 +868,19 @@ export default function RoomsPage() {
                 throw new Error(error.message || 'Fehler beim Aktualisieren der Serie');
             }
 
-            alert('Buchungen erfolgreich aktualisiert!');
+            showSuccess('Buchungen erfolgreich aktualisiert!');
             setShowManageSeriesPopup(false);
             loadUserBookings();
 
         } catch (err) {
             console.error('Fehler beim Aktualisieren der Serie:', err);
-            alert(err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Serie');
+            showError(err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Serie');
         }
     };
 
     const handleBlockSubmit = async () => {
         if (!blockDate) {
-            alert('Bitte wählen Sie ein Datum aus.');
+            showError('Bitte wählen Sie ein Datum aus.');
             return;
         }
 
@@ -885,7 +888,7 @@ export default function RoomsPage() {
         const endMinutes = timeToMinutes(blockAllDay ? '21:00' : blockEnd);
 
         if (endMinutes <= startMinutes) {
-            alert('Endzeit muss nach der Startzeit liegen.');
+            showError('Endzeit muss nach der Startzeit liegen.');
             return;
         }
 
@@ -904,17 +907,17 @@ export default function RoomsPage() {
 
             const data = await res.json();
             if (!res.ok) {
-                alert(data.message || 'Fehler beim Sperren.');
+                showError(data.message || 'Fehler beim Sperren.');
                 return;
             }
 
-            alert('Slot erfolgreich gesperrt!');
+            showSuccess('Slot erfolgreich gesperrt!');
             setShowBlockPopup(false);
             fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Sperren:', err);
-            alert('Fehler beim Sperren des Slots.');
+            showError('Fehler beim Sperren des Slots.');
         }
     };
 
@@ -936,7 +939,7 @@ export default function RoomsPage() {
             setGroupedAdminRequests(grouped);
         } catch (err) {
             console.error('Fehler beim Laden der Admin-Anfragen:', err);
-            alert('Fehler beim Laden der Anfragen');
+            showError('Fehler beim Laden der Anfragen');
         } finally {
             setIsLoadingRequests(false);
         }
@@ -974,7 +977,7 @@ export default function RoomsPage() {
             }
         } catch (err) {
             console.error('Fehler bei Admin-Aktion:', err);
-            alert(err instanceof Error ? err.message : 'Fehler bei der Aktion');
+            showError(err instanceof Error ? err.message : 'Fehler bei der Aktion');
         }
     };
 
