@@ -20,6 +20,9 @@ type Timeslot = {
     booking_status?: number;
     user_id?: number;
     username?: string;
+    is_recurring?: boolean;
+    pattern_id?: number | null;
+    frequency?: string;
 };
 
 type BookingRequest = {
@@ -91,6 +94,8 @@ type GroupedBooking = {
     first_booking_date: string;
     last_booking_date: string;
     frequency?: string;
+    timeslot_id?: number;
+    timeslot_status?: number;
 };
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i);
@@ -380,6 +385,9 @@ export default function RoomsPage() {
     const [rooms, setRooms] = useState<Room[]>([]);
     const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
+    const [showDetailsPopup, setShowDetailsPopup] = useState(false);
+    const [selectedSlotDetails, setSelectedSlotDetails] = useState<Timeslot | null>(null);
+
     useEffect(() => {
         const fetchRooms = async () => {
             try {
@@ -487,6 +495,12 @@ export default function RoomsPage() {
         }
     }, []);
 
+    useEffect(() => {
+        if (currentUserId && (role === 'user' || role === 'admin')) {
+            loadUserBookings();
+        }
+    }, [currentUserId, role]);
+
     const loadUserBookings = async () => {
         if ((role !== 'admin' && role !== 'user') || !currentUserId) return;
 
@@ -518,50 +532,71 @@ export default function RoomsPage() {
         setOpenBookingList(true);
     };
 
-    const handleCellClick = (dateIndex: number, hour: number) => {
-        if (role !== 'user' && role !== 'admin') return;
-        // if (isReserved(dateIndex, hour)) return;
-
+    const handleCellClick = (dateIndex: number, hour: number, e?: React.MouseEvent) => {
         //holle alle bestätigten / gesperrten slots in einer zelle
         const date = toISODate(weekDates[dateIndex]);
-        const slotsInCell = getTimeslotForCell(dateIndex, hour).filter(
-            t => t.booking_status === 1 || t.timeslot_status === 3
-        );
+        const slotsInCell = getTimeslotForCell(dateIndex, hour);
 
-        //zelle ist komplett frei > normale buchung
-        if(slotsInCell.length === 0){
+        let isClickInTopHalf = true;
+        if (e) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            isClickInTopHalf = relativeY <= rect.height / 2;
+        }
+
+        const cellStartMinutes = hour * 60;
+        const halfPoint = cellStartMinutes + 30;
+        const cellEndMinutes = (hour + 1) * 60;
+
+        const occupiedSlotAtPosition = slotsInCell.find(t => {
+            const startMin = timeToMinutes(t.start_time);
+            const endMin = timeToMinutes(t.end_time);
+            const isActive = t.booking_status === 1 || t.booking_status === 0 || t.timeslot_status === 3;
+
+            if (!isActive) return false;
+
+            if (isClickInTopHalf) {
+                return startMin < halfPoint && endMin > cellStartMinutes;
+            } else {
+                return startMin < cellEndMinutes && endMin > halfPoint;
+            }
+        });
+
+        if (occupiedSlotAtPosition) {
+            const extraData = userBookings.find(b => b.timeslot_id === occupiedSlotAtPosition.timeslot_id);
+
+            if (extraData) {
+                setSelectedSlotDetails({
+                    ...occupiedSlotAtPosition,
+                    is_recurring: extraData.is_recurring,
+                    frequency: extraData.frequency,
+                    pattern_id: extraData.pattern_id
+                });
+            } else {
+                setSelectedSlotDetails(occupiedSlotAtPosition);
+            }
+
+            setShowDetailsPopup(true);
+            return;
+        }
+
+        if (role !== 'user' && role !== 'admin') return;
+
         setSelectedDate(date);
         setSelectedHour(hour);
-        setStartTime(`${hour.toString().padStart(2, '0')}:00`);
-        setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
         setReason('');
         setTimeError('');
         setReasonError('');
-        setOpenBooking(true);
-        return;
+
+        if (slotsInCell.length === 0) {
+            setStartTime(`${hour.toString().padStart(2, '0')}:00`);
+            setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
+            setOpenBooking(true);
+            return;
         }
 
-
-        const cellStart = hour * 60;
-        const halfPoint = cellStart + 30;
-        const cellEnd = (hour + 1) * 60;
-
-        //prüfe ob erste hälfte frei ist
-        const firstHalfFree = !slotsInCell.some(t => {
-            const startMin = timeToMinutes(t.start_time);
-            const endMin = timeToMinutes(t.end_time);
-            return startMin < halfPoint && endMin > cellStart;
-        });
-
-        //prüfe ob zweite hälfte frei ist
-        const secondHalfFree = !slotsInCell.some(t => {
-            const startMin = timeToMinutes(t.start_time);
-            const endMin = timeToMinutes(t.end_time);
-            return startMin < cellEnd && endMin > halfPoint;
-        });
-
         //wenn die erste hälfte frei ist, kann sie normal gebucht werden
-        if(firstHalfFree){
+        if(isClickInTopHalf){
             setSelectedDate(date);
             setSelectedHour(hour);
             setStartTime(`${hour.toString().padStart(2, '0')}:00`);
@@ -570,7 +605,7 @@ export default function RoomsPage() {
             setTimeError('');
             setReasonError('');
             setOpenBooking(true);
-        } else if (secondHalfFree){ // wenn die zweite hälfte frei ist, kann sie normal gebucht werden
+        } else { // wenn die zweite hälfte frei ist, kann sie normal gebucht werden
             setSelectedDate(date);
             setSelectedHour(hour);
             setStartTime(`${hour.toString().padStart(2, '0')}:30`);
@@ -723,6 +758,7 @@ export default function RoomsPage() {
     };
 
     const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
+        const isBlockedSlot = groupedBooking.timeslot_status === 3 || groupedBooking.booking_status === undefined;
         if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
             if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
                 return;
@@ -734,7 +770,22 @@ export default function RoomsPage() {
         }
 
         try {
-            if (groupedBooking.pattern_id) {
+            if (isBlockedSlot && (role === 'admin')) {
+                const res = await fetch(`/api/calendar`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        timeslot_id: groupedBooking.timeslot_id || groupedBooking.booking_ids?.[0],
+                        action: 'unblock'
+                    }),
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Fehler beim Entsperren');
+                }
+                alert('Slot erfolgreich freigegeben!');
+            } else if (groupedBooking.pattern_id) {
                 const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
                     method: 'DELETE',
                 });
@@ -2189,6 +2240,103 @@ export default function RoomsPage() {
                                 className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
                             >
                                 Slot sperren
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDetailsPopup && selectedSlotDetails && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Termin-Details</h2>
+                            <button 
+                                onClick={() => setShowDetailsPopup(false)} 
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className="px-5 py-6 flex-1 space-y-6">
+                            
+                            <section>
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBookingStatusColor(selectedSlotDetails.booking_status ?? 1)}`}>
+                                        {getBookingStatusText(selectedSlotDetails.booking_status ?? 1)}
+                                    </span>
+                                    {!!selectedSlotDetails.is_recurring && (
+                                        <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                                            Wiederkehrend
+                                        </span>
+                                    )}
+                                    {selectedSlotDetails.frequency && (
+                                        <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                                            {selectedSlotDetails.frequency === 'daily' ? 'Täglich' : 'Wöchentlich'}
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-800">
+                                    {rooms.find(r => r.room_id === selectedSlotDetails.room_id)?.room_name}
+                                </h3>
+                            </section>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Datum</div>
+                                    <div className="text-sm text-gray-800">
+                                        {formatFullDate(parseISODateAsLocalDate(normalizeSlotDate(selectedSlotDetails.slot_date)))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Zeit</div>
+                                    <div className="text-sm text-gray-800">
+                                        {formatTimeForDisplay(selectedSlotDetails.start_time)} - {formatTimeForDisplay(selectedSlotDetails.end_time)} Uhr
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Gebucht von</div>
+                                    <div className="text-sm text-gray-800">
+                                        {selectedSlotDetails.username || 'System'}
+                                    </div>
+                                </div>
+
+                                {(selectedSlotDetails.blocked_reason || selectedSlotDetails.name) && (
+                                    <div>
+                                        <div className="text-sm font-medium text-gray-500 mb-1">Grund</div>
+                                        <div className="text-sm text-gray-800 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            {selectedSlotDetails.blocked_reason || selectedSlotDetails.name}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
+                            {((currentUserId && selectedSlotDetails.user_id === currentUserId) || (role === 'admin' && selectedSlotDetails.timeslot_status === 3)) && (
+                                <button
+                                    onClick={() => {
+                                        const deleteData: any = {
+                                            ...selectedSlotDetails,
+                                            booking_ids: [selectedSlotDetails.timeslot_id],
+                                            is_recurring: selectedSlotDetails.is_recurring || false,
+                                            pattern_id: (selectedSlotDetails as any).pattern_id || null
+                                        };
+                                        handleDeleteBooking(deleteData);
+                                        setShowDetailsPopup(false);
+                                    }}
+                                    className="px-6 py-2.5 rounded-lg bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                >
+                                    Löschen
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowDetailsPopup(false)}
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                            >
+                                Schließen
                             </button>
                         </div>
                     </div>
