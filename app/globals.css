@@ -814,3 +814,15 @@ body {
 [data-theme="dark"] .text-purple-800 {
   color: #f97316 !important; 
 }
+
+.swal2-popup {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+.swal2-title, .swal2-html-container {
+  color: var(--text-primary) !important;
+}
+.swal2-confirm {
+  background-color: #9fef00 !important;
+  color: #141d2b !important;
+}
