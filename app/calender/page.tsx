@@ -20,6 +20,10 @@ type Timeslot = {
     booking_status?: number;
     user_id?: number;
     username?: string;
+    is_recurring?: boolean;
+    pattern_id?: number | null;
+    frequency?: string;
+    booking_id?: number;
 };
 
 type BookingRequest = {
@@ -91,6 +95,8 @@ type GroupedBooking = {
     first_booking_date: string;
     last_booking_date: string;
     frequency?: string;
+    timeslot_id?: number;
+    timeslot_status?: number;
 };
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i);
@@ -380,6 +386,9 @@ export default function RoomsPage() {
     const [rooms, setRooms] = useState<Room[]>([]);
     const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
+    const [showDetailsPopup, setShowDetailsPopup] = useState(false);
+    const [selectedSlotDetails, setSelectedSlotDetails] = useState<Timeslot | null>(null);
+
     useEffect(() => {
         const fetchRooms = async () => {
             try {
@@ -487,6 +496,12 @@ export default function RoomsPage() {
         }
     }, []);
 
+    useEffect(() => {
+        if (currentUserId && (role === 'user' || role === 'admin')) {
+            loadUserBookings();
+        }
+    }, [currentUserId, role]);
+
     const loadUserBookings = async () => {
         if ((role !== 'admin' && role !== 'user') || !currentUserId) return;
 
@@ -518,20 +533,91 @@ export default function RoomsPage() {
         setOpenBookingList(true);
     };
 
-    const handleCellClick = (dateIndex: number, hour: number) => {
+    const handleCellClick = (dateIndex: number, hour: number, e?: React.MouseEvent) => {
+        //holle alle bestätigten / gesperrten slots in einer zelle
+        const date = toISODate(weekDates[dateIndex]);
+        const slotsInCell = getTimeslotForCell(dateIndex, hour);
+
+        let isClickInTopHalf = true;
+        if (e) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            isClickInTopHalf = relativeY <= rect.height / 2;
+        }
+
+        const cellStartMinutes = hour * 60;
+        const halfPoint = cellStartMinutes + 30;
+        const cellEndMinutes = (hour + 1) * 60;
+
+        const occupiedSlotAtPosition = slotsInCell.find(t => {
+            const startMin = timeToMinutes(t.start_time);
+            const endMin = timeToMinutes(t.end_time);
+            const isActive = t.booking_status === 1 || t.booking_status === 0 || t.timeslot_status === 3;
+
+            if (!isActive) return false;
+
+            if (isClickInTopHalf) {
+                return startMin < halfPoint && endMin > cellStartMinutes;
+            } else {
+                return startMin < cellEndMinutes && endMin > halfPoint;
+            }
+        });
+
+        if (occupiedSlotAtPosition) {
+            const extraData = userBookings.find(b => b.timeslot_id === occupiedSlotAtPosition.timeslot_id);
+
+            if (extraData) {
+                setSelectedSlotDetails({
+                    ...occupiedSlotAtPosition,
+                    booking_id: extraData.booking_id,
+                    is_recurring: extraData.is_recurring,
+                    frequency: extraData.frequency,
+                    pattern_id: extraData.pattern_id
+                });
+            } else {
+                setSelectedSlotDetails(occupiedSlotAtPosition);
+            }
+
+            setShowDetailsPopup(true);
+            return;
+        }
+
         if (role !== 'user' && role !== 'admin') return;
 
-        if (isReserved(dateIndex, hour)) return;
-
-        const date = toISODate(weekDates[dateIndex]);
         setSelectedDate(date);
         setSelectedHour(hour);
-        setStartTime(`${hour.toString().padStart(2, '0')}:00`);
-        setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
         setReason('');
         setTimeError('');
         setReasonError('');
-        setOpenBooking(true);
+
+        if (slotsInCell.length === 0) {
+            setStartTime(`${hour.toString().padStart(2, '0')}:00`);
+            setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
+            setOpenBooking(true);
+            return;
+        }
+
+        //wenn die erste hälfte frei ist, kann sie normal gebucht werden
+        if(isClickInTopHalf){
+            setSelectedDate(date);
+            setSelectedHour(hour);
+            setStartTime(`${hour.toString().padStart(2, '0')}:00`);
+            setEndTime(`${hour.toString().padStart(2, '0')}:30`);
+            setReason('');
+            setTimeError('');
+            setReasonError('');
+            setOpenBooking(true);
+        } else { // wenn die zweite hälfte frei ist, kann sie normal gebucht werden
+            setSelectedDate(date);
+            setSelectedHour(hour);
+            setStartTime(`${hour.toString().padStart(2, '0')}:30`);
+            setEndTime(`${(hour + 1).toString().padStart(2, '0')}:00`);
+            setReason('');
+            setTimeError('');
+            setReasonError('');
+            setOpenBooking(true);
+        }
+
     };
 
     const handleStartTimeChange = (newStartTime: string) => {
@@ -670,34 +756,52 @@ export default function RoomsPage() {
         setUntilDate('');
 
         // Auto-refresh nutzen
-        fetchTimeslots();
+        window.location.reload();
     };
 
     const handleDeleteBooking = async (groupedBooking: GroupedBooking) => {
-        if (groupedBooking.is_recurring && groupedBooking.pattern_id) {
-            if (!confirm(`Möchten Sie die gesamte Buchungen wirklich löschen?`)) {
-                return;
-            }
-        } else {
-            if (!confirm(`Möchten Sie diese Buchung wirklich löschen?`)) {
-                return;
-            }
-        }
+        const isBlockedSlot = groupedBooking.timeslot_status === 3;
+        const isRecurring = groupedBooking.is_recurring && groupedBooking.pattern_id;
+        const patternId = groupedBooking.pattern_id;
+
+        let confirmMessage = "Möchten Sie diese Buchung wirklich löschen?";
+        if (isBlockedSlot) confirmMessage = "Möchten Sie diesen Slot wirklich wieder freigeben?";
+        if (isRecurring) confirmMessage = "Möchten Sie die gesamte Serie wirklich löschen?";
+
+        if (!confirm(confirmMessage)) return;
 
         try {
-            if (groupedBooking.pattern_id) {
-                const res = await fetch(`/api/calendar?pattern_id=${groupedBooking.pattern_id}`, {
+            if (isBlockedSlot && role === 'admin') {
+                const res = await fetch(`/api/calendar`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        timeslot_id: groupedBooking.timeslot_id || groupedBooking.booking_ids?.[0],
+                        action: 'unblock'
+                    }),
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Fehler beim Entsperren');
+                }
+                alert('Slot erfolgreich freigegeben!');
+            } else if (isRecurring) {
+                const res = await fetch(`/api/calendar?pattern_id=${patternId}`, {
                     method: 'DELETE',
                 });
 
                 if (!res.ok) {
                     const error = await res.json();
-                    throw new Error(error.message || 'Fehler beim Löschen');
+                    throw new Error(error.message || 'Fehler beim Löschen der Routine');
                 }
                 alert('Buchungen erfolgreich gelöscht!');
             } else {
-                for (const bookingId of groupedBooking.booking_ids) {
-                    const res = await fetch(`/api/calendar?booking_id=${bookingId}`, {
+                const idsToDelete = groupedBooking.booking_ids || [groupedBooking.booking_id || groupedBooking.timeslot_id];
+
+                for (const id of idsToDelete) {
+                    if (!id) continue;
+                    const res = await fetch(`/api/calendar?booking_id=${id}`, {
                         method: 'DELETE',
                     });
 
@@ -709,8 +813,8 @@ export default function RoomsPage() {
                 alert('Buchung erfolgreich gelöscht!');
             }
 
-            loadUserBookings();
-            fetchTimeslots();
+            await loadUserBookings();
+            await fetchTimeslots();
 
         } catch (err) {
             console.error('Fehler beim Löschen:', err);
@@ -887,25 +991,22 @@ export default function RoomsPage() {
         [timeslots, selectedRoomId]
     );
 
-    const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot | undefined => {
+    const getTimeslotForCell = (dateIndex: number, hour: number): Timeslot[] => {
         const dateStr = toISODate(weekDates[dateIndex]);
-
-        return timeslotsForRoom.find((t) => {
+        return timeslotsForRoom.filter((t) => {
             const slotDateStr = normalizeSlotDate(t.slot_date);
             if (slotDateStr !== dateStr) return false;
-
-            const startHour = getHourFromTime(t.start_time);
-            const endHour = getHourFromTime(t.end_time);
 
             const startMinutes = timeToMinutes(t.start_time);
             const endMinutes = timeToMinutes(t.end_time);
 
             const cellStartMinutes = hour * 60;
-            const cellEndMinutes = (hour + 1) * 60 - 1;
+            const cellEndMinutes = (hour + 1) * 60;
 
-            return (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes);
+            return startMinutes < cellEndMinutes && endMinutes > cellStartMinutes;
         });
     };
+
 
     const isCurrentWeek = useMemo(() => {
         const todayMonday = getMonday(new Date());
@@ -932,20 +1033,15 @@ export default function RoomsPage() {
         return timeslotsForRoom.some((t) => {
             const slotDateStr = normalizeSlotDate(t.slot_date);
             if (slotDateStr !== dateStr) return false;
+            if (!(t.booking_status === 1 || t.timeslot_status === 3)) return false;
 
-            const startHour = getHourFromTime(t.start_time);
-            const endHour = getHourFromTime(t.end_time);
 
             const startMinutes = timeToMinutes(t.start_time);
             const endMinutes = timeToMinutes(t.end_time);
-
             const cellStartMinutes = hour * 60;
-            const cellEndMinutes = (hour + 1) * 60 - 1;
+            const cellEndMinutes = (hour + 1) * 60;
 
-            if (cellStartMinutes < endMinutes && cellEndMinutes > startMinutes) {
-                return t.booking_status === 1 || t.timeslot_status === 3;
-            }
-            return false;
+            return startMinutes <= cellStartMinutes && endMinutes >= cellEndMinutes;
         });
     };
 
@@ -1005,6 +1101,8 @@ export default function RoomsPage() {
         }
     };
 
+    const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === "dark";
+    const emptyBg = isDark ? "#1a2332" : "white";
     return (
         <>
             <main className="flex justify-center px-2 pt-25 md:px-4 pt-20 md:pt-35 pb-2 md:pb-10">
@@ -1130,54 +1228,111 @@ export default function RoomsPage() {
                                 <div key={day} className="flex flex-col overflow-hidden rounded-b-md border-2 border-[#0f692b]">
                                     {HOURS.map((hour, idx) => {
                                         const slot = getTimeslotForCell(dateIndex, hour);
-                                        const reserved = !!slot && (slot.timeslot_status === 2 || slot.timeslot_status === 3);
-                                        const start = !!slot && isReservationStart(dateIndex, hour);
+                                        const reserved = isReserved(dateIndex, hour);
+
+                                        const cellStartMinutes = hour * 60;
+                                        const cellEndMinutes = (hour + 1) * 60;
+                                        const halfPoint = cellStartMinutes + 30;
+
+                                        const firstHalfSlot = slot.find(t => {
+                                        const startMin = timeToMinutes(t.start_time);
+                                        const endMin = timeToMinutes(t.end_time);
+                                        return startMin < halfPoint && endMin > cellStartMinutes;
+                                        });
+
+                                        const secondHalfSlot = slot.find(t => {
+                                        const startMin = timeToMinutes(t.start_time);
+                                        const endMin = timeToMinutes(t.end_time);
+                                        return startMin < cellEndMinutes && endMin > halfPoint;
+                                        });
+
+                                        const firstHalfStarts = firstHalfSlot && timeToMinutes(firstHalfSlot.start_time) >= cellStartMinutes && timeToMinutes(firstHalfSlot.start_time) < halfPoint;
+
+                                        const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
+
+
+                                        const getColor = (slot: Timeslot | undefined) => {
+                                        //   const isDark = document.documentElement.dataset.theme === "dark";
+
+                                        if (!slot) return isDark ? "#1a2332" : "white";
+
+                                        if (slot.timeslot_status === 3)
+                                            return isDark ? "#374151" : "#d1d5db";
+
+                                        if (slot.booking_status === 0)
+                                            return isDark ? "#e87020ff" : "#fed7aa";
+
+                                        if (slot.booking_status === 1)
+                                            return isDark ? "#249752ff" : "#62d88bff";
+
+                                        return isDark ? "#1a2332" : "white";
+                                        };
+
+
+                                        const firstColor = getColor(firstHalfSlot);
+                                        const secondColor = getColor(secondHalfSlot);
+
+                                        
+
+                                        let customStyle: React.CSSProperties = {};
+                                        if (firstHalfSlot && secondHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)` 
+                                            };
+                                        } else if (firstHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
+                                            };
+                                        } else if (secondHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
+                                            };
+                                        } else {
+                                            customStyle = { backgroundColor: "emptyBg" };
+                                        }
+
 
                                         const classNames = [
-                                            "relative flex min-h-[32px] items-center border-t border-[#0f692b] text-xs",
+                                            "relative flex min-h-[32px] items-center justify-center border-t border-[#0f692b] text-xs",
                                             idx === 0 ? "border-t-0" : "",
+                                            !reserved && (role === "user" || role === "admin") ? "cursor-pointer hover:bg-[#e6f5e9]" : ""
                                         ];
 
-                                        if (reserved) {
-                                            if (slot?.timeslot_status === 3) {
-                                                classNames.push("bg-gray-300 text-gray-800");
-                                            } else if (slot?.booking_status === 0) {
-                                                classNames.push("bg-orange-200 text-orange-900");
-                                            } else if (slot?.booking_status === 1) {
-                                                classNames.push("bg-green-200 text-green-900");
-                                            } else {
-                                                classNames.push("bg-gray-100");
-                                            }
-                                        } else {
-                                            classNames.push("bg-white");
-                                            if (role === "user" || role === "admin") {
-                                                classNames.push("cursor-pointer", "hover:bg-[#e6f5e9]");
-                                            }
-                                        }
 
                                         return (
                                             <div
                                                 key={hour}
-                                                onClick={() => handleCellClick(dateIndex, hour)}
+                                                onClick={(e) => handleCellClick(dateIndex, hour, e)}
                                                 className={classNames.filter(Boolean).join(" ")}
+                                                style={customStyle}
                                             >
-                                                {start && slot && (
-                                                    <div className="absolute inset-x-1 top-1 flex flex-col items-center text-[10px] font-semibold">
-                                                        <span>{slot.username || "Belegt"}</span>
-                                                        {slot.timeslot_status === 3 && (
+                                                {firstHalfStarts && firstHalfSlot && (
+                                                <div className="absolute inset-x-1 top-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
+                                                    <span>{firstHalfSlot.username || "Belegt"}</span>
+                                                    {firstHalfSlot.timeslot_status === 3 && (
+                                                        <span className="text-[9px] font-normal">Gesperrt</span>
+                                                    )}
+                                                    {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
+                                                        <span className="text-[9px] font-normal"></span>
+                                                    )}
+                                                </div>
+                                            )}
+            
+                                                {secondHalfStarts && secondHalfSlot && (
+                                                    <div className="absolute inset-x-1 bottom-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
+                                                        <span>{secondHalfSlot.username || "Belegt"}</span>
+                                                        {secondHalfSlot.timeslot_status === 3 && (
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
-                                                        {slot.timeslot_status === 2 && slot.booking_status === 0 && (
-                                                            <span className="text-[9px] font-normal">Anfrage</span>
-                                                        )}
-                                                        {slot.timeslot_status === 2 && slot.booking_status === 1 && (
-                                                            <span className="text-[9px] font-normal">Bestätigt</span>
+                                                        {secondHalfSlot.timeslot_status === 2 && secondHalfSlot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     })}
+
                                 </div>
                             ))}
 
@@ -1188,6 +1343,8 @@ export default function RoomsPage() {
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
                                 <div className="h-6 flex items-center justify-center"></div>
+                                
+
                                 {HOURS.map((hour) => (
                                     <div
                                         key={hour}
@@ -1202,54 +1359,115 @@ export default function RoomsPage() {
                                 <div className="flex flex-col rounded-lg border-2 border-[#0f692b] overflow-hidden">
                                     {HOURS.map((hour, idx) => {
                                         const slot = getTimeslotForCell(currentDayIndex, hour);
-                                        const reserved = !!slot && (slot.timeslot_status === 2 || slot.timeslot_status === 3);
-                                        const start = !!slot && isReservationStart(currentDayIndex, hour);
+                                        const reserved = isReserved(currentDayIndex, hour);
+
+                                        const cellStartMinutes = hour * 60;
+                                        const cellEndMinutes = (hour + 1) * 60;
+                                        const halfPoint = cellStartMinutes + 30;
+
+                                        const firstHalfSlot = slot.find(t => {
+                                            const startMin = timeToMinutes(t.start_time);
+                                            const endMin = timeToMinutes(t.end_time);
+                                            return startMin < halfPoint && endMin > cellStartMinutes;
+                                        });
+
+                                        const secondHalfSlot = slot.find(t => {
+                                            const startMin = timeToMinutes(t.start_time);
+                                            const endMin = timeToMinutes(t.end_time);
+                                            return startMin < cellEndMinutes && endMin > halfPoint;
+                                        });
+
+                                        const firstHalfStarts = firstHalfSlot && timeToMinutes(firstHalfSlot.start_time) >= cellStartMinutes && timeToMinutes(firstHalfSlot.start_time) < halfPoint;
+
+                                        const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
+
+                                        const EMPTY_BG_LIGHT = "white";
+                                        const EMPTY_BG_DARK = "#1a2332";
+
+
+
+                                        const getColor = (slot: Timeslot | undefined) => {
+                                        // const isDark = document.documentElement.dataset.theme === "dark";
+
+                                            if (!slot) return isDark ? "#1a2332" : "white";
+
+                                            if (slot.timeslot_status === 3)
+                                                return isDark ? "#374151" : "#d1d5db";
+
+                                            if (slot.booking_status === 0)
+                                                return isDark ? "#dc704cff" : "#fed7aa";
+
+                                            if (slot.booking_status === 1)
+                                                return isDark ? "#14532d" : "#bbf7d0";
+
+                                            return isDark ? EMPTY_BG_DARK : EMPTY_BG_LIGHT;
+                                            };
+
+
+
+                                        const firstColor = getColor(firstHalfSlot);
+                                        const secondColor = getColor(secondHalfSlot);
+
+
+                                        let customStyle: React.CSSProperties = {};
+                                        if (firstHalfSlot && secondHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${secondColor} 50%)` 
+                                            };
+                                        } else if (firstHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
+                                            };
+                                        } else if (secondHalfSlot) {
+                                            customStyle = { 
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
+                                            };
+                                        } else {
+                                            customStyle = { backgroundColor: "emptyBg" };
+                                        }
+
 
                                         const classNames = [
                                             "relative flex min-h-[40px] items-center justify-center border-t border-[#0f692b]",
                                             idx === 0 ? "border-t-0" : "",
+                                            !reserved && (role === "user" || role === "admin") ? "cursor-pointer hover:bg-[#e6f5e9]" : ""
                                         ];
-
-                                        if (reserved) {
-                                            if (slot?.timeslot_status === 3) {
-                                                classNames.push("bg-gray-300 text-gray-800");
-                                            } else if (slot?.booking_status === 0) {
-                                                classNames.push("bg-orange-200 text-orange-900");
-                                            } else if (slot?.booking_status === 1) {
-                                                classNames.push("bg-green-200 text-green-900");
-                                            } else {
-                                                classNames.push("bg-gray-100");
-                                            }
-                                        } else {
-                                            classNames.push("bg-white");
-                                            if (role === "user" || role === "admin") {
-                                                classNames.push("cursor-pointer", "hover:bg-[#e6f5e9]");
-                                            }
-                                        }
 
                                         return (
                                             <div
                                                 key={hour}
-                                                onClick={() => handleCellClick(currentDayIndex, hour)}
+                                                onClick={(e) => handleCellClick(currentDayIndex, hour, e)}
                                                 className={classNames.filter(Boolean).join(" ")}
+                                                style={customStyle}
                                             >
-                                                {start && slot && (
-                                                    <div className="flex flex-col items-center text-[10px] font-semibold">
-                                                        <span>{slot.username || "Belegt"}</span>
-                                                        {slot.timeslot_status === 3 && (
+                                                {firstHalfStarts && firstHalfSlot && (
+                                                    <div className="absolute inset-x-1 top-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
+                                                        <span>{firstHalfSlot.username || "Belegt"}</span>
+                                                        {firstHalfSlot.timeslot_status === 3 && (
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
-                                                        {slot.timeslot_status === 2 && slot.booking_status === 0 && (
-                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                        {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
-                                                        {slot.timeslot_status === 2 && slot.booking_status === 1 && (
-                                                            <span className="text-[9px] font-normal">Bestätigt</span>
+                                                    </div>
+                                                )}
+            
+                                                {secondHalfStarts && secondHalfSlot && (
+                                                    <div className="absolute inset-x-1 bottom-0.5 flex flex-col items-center text-[10px] font-semibold z-10">
+                                                        <span>{secondHalfSlot.username || "Belegt"}</span>
+                                                        {secondHalfSlot.timeslot_status === 3 && (
+                                                            <span className="text-[9px] font-normal">Gesperrt</span>
+                                                        )}
+                                                        {secondHalfSlot.timeslot_status === 2 && secondHalfSlot.booking_status === 0 && (
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     })}
+                                    
+
                                 </div>
                             </div>
                         </div>
@@ -2026,6 +2244,105 @@ export default function RoomsPage() {
                                 className="w-full sm:w-auto px-8 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors cursor-pointer"
                             >
                                 Slot sperren
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDetailsPopup && selectedSlotDetails && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-semibold text-gray-800">Termin-Details</h2>
+                            <button 
+                                onClick={() => setShowDetailsPopup(false)} 
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <div className="px-5 py-6 flex-1 space-y-6">
+                            
+                            <section>
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getBookingStatusColor(selectedSlotDetails.booking_status ?? 1)}`}>
+                                        {getBookingStatusText(selectedSlotDetails.booking_status ?? 1)}
+                                    </span>
+                                    {!!selectedSlotDetails.is_recurring && (
+                                        <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                                            Wiederkehrend
+                                        </span>
+                                    )}
+                                    {selectedSlotDetails.frequency && (
+                                        <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                                            {selectedSlotDetails.frequency === 'daily' ? 'Täglich' : 'Wöchentlich'}
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-800">
+                                    {rooms.find(r => r.room_id === selectedSlotDetails.room_id)?.room_name}
+                                </h3>
+                            </section>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Datum</div>
+                                    <div className="text-sm text-gray-800">
+                                        {formatFullDate(parseISODateAsLocalDate(normalizeSlotDate(selectedSlotDetails.slot_date)))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Zeit</div>
+                                    <div className="text-sm text-gray-800">
+                                        {formatTimeForDisplay(selectedSlotDetails.start_time)} - {formatTimeForDisplay(selectedSlotDetails.end_time)} Uhr
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="text-sm font-medium text-gray-500">Gebucht von</div>
+                                    <div className="text-sm text-gray-800">
+                                        {selectedSlotDetails.username || 'System'}
+                                    </div>
+                                </div>
+
+                                {(selectedSlotDetails.blocked_reason || selectedSlotDetails.name) && (
+                                    <div>
+                                        <div className="text-sm font-medium text-gray-500 mb-1">Grund</div>
+                                        <div className="text-sm text-gray-800 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            {selectedSlotDetails.blocked_reason || selectedSlotDetails.name}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-5 py-4 bg-[#dfeedd] rounded-b-xl flex gap-3 justify-end">
+                            {((currentUserId && selectedSlotDetails.user_id === currentUserId) || (role === 'admin' && selectedSlotDetails.timeslot_status === 3)) && (
+                                <button
+                                    onClick={() => {
+                                        const deleteData: any = {
+                                            ...selectedSlotDetails,
+                                            booking_ids: selectedSlotDetails.booking_id 
+                                                ? [selectedSlotDetails.booking_id] 
+                                                : [selectedSlotDetails.timeslot_id],
+                                            is_recurring: selectedSlotDetails.is_recurring || false,
+                                            pattern_id: (selectedSlotDetails as any).pattern_id || null
+                                        };
+                                        handleDeleteBooking(deleteData);
+                                        setShowDetailsPopup(false);
+                                    }}
+                                    className="px-6 py-2.5 rounded-lg bg-red-100 border border-red-700 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors flex items-center gap-1"
+                                >
+                                    Löschen
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowDetailsPopup(false)}
+                                className="px-6 py-2.5 rounded-lg bg-[#0f692b] text-white text-sm font-semibold hover:bg-[#0a4d1f] transition-colors"
+                            >
+                                Schließen
                             </button>
                         </div>
                     </div>

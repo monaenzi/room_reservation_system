@@ -708,7 +708,28 @@ export async function PATCH(req: NextRequest) {
   let conn: mariadb.PoolConnection | undefined;
 
   try {
-    const { room_id, slot_date, start_time, end_time, reason } = await req.json();
+    const { timeslot_id, action, room_id, slot_date, start_time, end_time, reason } = await req.json();
+
+    conn = await pool.getConnection();
+
+    if (action === "unblock" && timeslot_id) {
+      const deleteResult: any =await conn.query(
+        "DELETE FROM timeslot WHERE timeslot_id = ? AND timeslot_status = 3",
+        [timeslot_id]
+      );
+
+      if (deleteResult.affectedRows === 0) {
+        return NextResponse.json(
+          { message: "Sperre konnte nicht gefunden werden oder ist bereits gelöscht." },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        { message: "Sperrung erfolgreich entfernt." },
+        { status: 200 }
+      );
+    }
 
     if (!room_id || !slot_date || !start_time || !end_time) {
       return NextResponse.json(
@@ -716,8 +737,6 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    conn = await pool.getConnection();
 
     const normalizedDate =
       typeof slot_date === "string" && slot_date.includes("T")
@@ -776,7 +795,7 @@ export async function PATCH(req: NextRequest) {
       { status: 201 }
     );
   } catch (err) {
-    console.error("Fehler beim Sperren:", err);
+    console.error("Fehler beim Sperren oder Entsperren:", err);
     return NextResponse.json({ message: "Interner Serverfehler." }, { status: 500 });
   } finally {
     if (conn) conn.release();
