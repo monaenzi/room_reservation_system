@@ -1046,6 +1046,8 @@ export default function RoomsPage() {
         }
     };
 
+    const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === "dark";
+    const emptyBg = isDark ? "#1a2332" : "white";
     return (
         <>
             <main className="flex justify-center px-2 pt-25 md:px-4 pt-20 md:pt-35 pb-2 md:pb-10">
@@ -1193,16 +1195,29 @@ export default function RoomsPage() {
 
                                         const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
 
+
                                         const getColor = (slot: Timeslot | undefined) => {
-                                            if (!slot) return "white";
-                                            if (slot.timeslot_status === 3) return "#d1d5db";
-                                            if (slot.booking_status === 0) return "#fed7aa";
-                                            if (slot.booking_status === 1) return "#bbf7d0";
-                                            return "white";
+                                        //   const isDark = document.documentElement.dataset.theme === "dark";
+
+                                        if (!slot) return isDark ? "#1a2332" : "white";
+
+                                        if (slot.timeslot_status === 3)
+                                            return isDark ? "#374151" : "#d1d5db";
+
+                                        if (slot.booking_status === 0)
+                                            return isDark ? "#e87020ff" : "#fed7aa";
+
+                                        if (slot.booking_status === 1)
+                                            return isDark ? "#249752ff" : "#62d88bff";
+
+                                        return isDark ? "#1a2332" : "white";
                                         };
+
 
                                         const firstColor = getColor(firstHalfSlot);
                                         const secondColor = getColor(secondHalfSlot);
+
+                                        
 
                                         let customStyle: React.CSSProperties = {};
                                         if (firstHalfSlot && secondHalfSlot) {
@@ -1211,14 +1226,14 @@ export default function RoomsPage() {
                                             };
                                         } else if (firstHalfSlot) {
                                             customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, white 50%)` 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
                                             };
                                         } else if (secondHalfSlot) {
                                             customStyle = { 
-                                                background: `linear-gradient(to bottom, white 50%, ${secondColor} 50%)` 
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: "white" };
+                                            customStyle = { backgroundColor: "emptyBg" };
                                         }
 
 
@@ -1243,7 +1258,7 @@ export default function RoomsPage() {
                                                         <span className="text-[9px] font-normal">Gesperrt</span>
                                                     )}
                                                     {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
-                                                        <span className="text-[9px] font-normal">Anfrage</span>
+                                                        <span className="text-[9px] font-normal"></span>
                                                     )}
                                                 </div>
                                             )}
@@ -1255,7 +1270,7 @@ export default function RoomsPage() {
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
                                                         {secondHalfSlot.timeslot_status === 2 && secondHalfSlot.booking_status === 0 && (
-                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
                                                     </div>
                                                 )}
@@ -1273,6 +1288,8 @@ export default function RoomsPage() {
                         <div className="flex gap-1 min-w-max">
                             <div className="flex flex-col w-8 flex-shrink-0">
                                 <div className="h-6 flex items-center justify-center"></div>
+                                
+
                                 {HOURS.map((hour) => (
                                     <div
                                         key={hour}
@@ -1308,14 +1325,30 @@ export default function RoomsPage() {
                                         const firstHalfStarts = firstHalfSlot && timeToMinutes(firstHalfSlot.start_time) >= cellStartMinutes && timeToMinutes(firstHalfSlot.start_time) < halfPoint;
 
                                         const secondHalfStarts = secondHalfSlot && timeToMinutes(secondHalfSlot.start_time) >= halfPoint && timeToMinutes(secondHalfSlot.start_time) < cellEndMinutes;
-                                    
+
+                                        const EMPTY_BG_LIGHT = "white";
+                                        const EMPTY_BG_DARK = "#1a2332";
+
+
+
                                         const getColor = (slot: Timeslot | undefined) => {
-                                            if (!slot) return "white";
-                                            if (slot.timeslot_status === 3) return "#d1d5db";
-                                            if (slot.booking_status === 0) return "#fed7aa";
-                                            if (slot.booking_status === 1) return "#bbf7d0";
-                                            return "white";
-                                        };
+                                        // const isDark = document.documentElement.dataset.theme === "dark";
+
+                                            if (!slot) return isDark ? "#1a2332" : "white";
+
+                                            if (slot.timeslot_status === 3)
+                                                return isDark ? "#374151" : "#d1d5db";
+
+                                            if (slot.booking_status === 0)
+                                                return isDark ? "#dc704cff" : "#fed7aa";
+
+                                            if (slot.booking_status === 1)
+                                                return isDark ? "#14532d" : "#bbf7d0";
+
+                                            return isDark ? EMPTY_BG_DARK : EMPTY_BG_LIGHT;
+                                            };
+
+
 
                                         const firstColor = getColor(firstHalfSlot);
                                         const secondColor = getColor(secondHalfSlot);
@@ -1328,14 +1361,14 @@ export default function RoomsPage() {
                                             };
                                         } else if (firstHalfSlot) {
                                             customStyle = { 
-                                                background: `linear-gradient(to bottom, ${firstColor} 50%, white 50%)` 
+                                                background: `linear-gradient(to bottom, ${firstColor} 50%, ${emptyBg} 50%)` 
                                             };
                                         } else if (secondHalfSlot) {
                                             customStyle = { 
-                                                background: `linear-gradient(to bottom, white 50%, ${secondColor} 50%)` 
+                                                background: `linear-gradient(to bottom, ${emptyBg} 50%, ${secondColor} 50%)` 
                                             };
                                         } else {
-                                            customStyle = { backgroundColor: "white" };
+                                            customStyle = { backgroundColor: "emptyBg" };
                                         }
 
 
@@ -1359,7 +1392,7 @@ export default function RoomsPage() {
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
                                                         {firstHalfSlot.timeslot_status === 2 && firstHalfSlot.booking_status === 0 && (
-                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
                                                     </div>
                                                 )}
@@ -1371,13 +1404,14 @@ export default function RoomsPage() {
                                                             <span className="text-[9px] font-normal">Gesperrt</span>
                                                         )}
                                                         {secondHalfSlot.timeslot_status === 2 && secondHalfSlot.booking_status === 0 && (
-                                                            <span className="text-[9px] font-normal">Anfrage</span>
+                                                            <span className="text-[9px] font-normal"></span>
                                                         )}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     })}
+                                    
 
                                 </div>
                             </div>
