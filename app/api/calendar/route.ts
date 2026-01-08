@@ -258,7 +258,7 @@ async function getUserEmailData(
 
   if (pattern_id) {
     query = `
-      SELECT DISTINCT u.email, u.first_name, r.room_name,
+      SELECT DISTINCT u.email, u.first_name, r.room_name, u.user_id,
              t.slot_date, t.start_time, t.end_time, b.reason,
              b.is_recurring, rp.end_date as until_date
       FROM booking b
@@ -272,7 +272,7 @@ async function getUserEmailData(
     params = [pattern_id];
   } else if (booking_ids && booking_ids.length > 0) {
     query = `
-      SELECT DISTINCT u.email, u.first_name, r.room_name,
+      SELECT DISTINCT u.email, u.first_name, r.room_name, u.user_id,
              t.slot_date, t.start_time, t.end_time, b.reason
       FROM booking b
       JOIN users u ON b.user_id = u.user_id
@@ -284,7 +284,7 @@ async function getUserEmailData(
     params = [booking_ids];
   } else if (booking_id) {
     query = `
-      SELECT u.email, u.first_name, r.room_name,
+      SELECT u.email, u.first_name, r.room_name, u.user_id,
              t.slot_date, t.start_time, t.end_time, b.reason
       FROM booking b
       JOIN users u ON b.user_id = u.user_id
@@ -375,29 +375,33 @@ async function handleBookingAction(
   }
 
   if (userData) {
-    await sendBookingNotificationEmail(
-      userData.email,
-      userData.first_name,
-      action === "accept" ? "accepted" : "rejected",
-      {
-        roomName: userData.room_name,
-        date: userData.slot_date,
-        startTime: userData.start_time,
-        endTime: userData.end_time,
-        reason: userData.reason,
-        isRecurring,
-        untilDate,
-        patternId: pattern_id,
-      }
+    const userRoleCheck = await conn.query(
+      "SELECT role_id FROM users WHERE user_id = ?",
+      [userData.user_id]
     );
+    
+    if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
+      await sendBookingNotificationEmail(
+        userData.email,
+        userData.first_name,
+        action === "accept" ? "accepted" : "rejected",
+        {
+          roomName: userData.room_name,
+          date: userData.slot_date,
+          startTime: userData.start_time,
+          endTime: userData.end_time,
+          reason: userData.reason,
+          isRecurring: isRecurring,
+          untilDate: untilDate,
+          patternId: pattern_id,
+        }
+      );
+    }
   }
 
   return { message: action === "accept" ? "Buchung(en) angenommen." : "Buchung(en) abgelehnt." };
 }
 
-/** ================================
- *  ✅ ROUTE HANDLERS
- *  ================================ */
 
 export async function GET(req: NextRequest) {
   const room_id = req.nextUrl.searchParams.get("room_id");
@@ -788,16 +792,23 @@ export async function DELETE(req: NextRequest) {
       await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
 
       if (userData) {
-        await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
-          roomName: userData.room_name,
-          date: userData.slot_date,
-          startTime: userData.start_time,
-          endTime: userData.end_time,
-          reason: userData.reason,
-          isRecurring: userData.is_recurring,
-          untilDate: userData.until_date,
-          patternId: parseInt(pattern_id),
-        });
+        const userRoleCheck = await conn.query(
+          "SELECT role_id FROM users WHERE user_id = ?",
+          [userData.user_id]
+        );
+
+        if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
+          await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
+            roomName: userData.room_name,
+            date: userData.slot_date,
+            startTime: userData.start_time,
+            endTime: userData.end_time,
+            reason: userData.reason,
+            isRecurring: userData.is_recurring,
+            untilDate: userData.until_date,
+            patternId: parseInt(pattern_id),
+          });
+        }
       }
 
       return NextResponse.json({ message: "Serie erfolgreich gelöscht.", pattern_id: Number(pattern_id) });
@@ -815,13 +826,20 @@ export async function DELETE(req: NextRequest) {
     await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
 
     if (userData) {
-      await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
-        roomName: userData.room_name,
-        date: userData.slot_date,
-        startTime: userData.start_time,
-        endTime: userData.end_time,
-        reason: userData.reason,
-      });
+      const userRoleCheck = await conn.query(
+        "SELECT role_id FROM users WHERE user_id = ?",
+        [userData.user_id]
+      );
+
+      if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
+        await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
+          roomName: userData.room_name,
+          date: userData.slot_date,
+          startTime: userData.start_time,
+          endTime: userData.end_time,
+          reason: userData.reason,
+        });
+      }
     }
 
     return NextResponse.json({ message: "Buchung erfolgreich gelöscht.", booking_id: Number(booking_id) });
