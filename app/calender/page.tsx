@@ -388,6 +388,7 @@ export default function RoomsPage() {
 
     const [showDetailsPopup, setShowDetailsPopup] = useState(false);
     const [selectedSlotDetails, setSelectedSlotDetails] = useState<Timeslot | null>(null);
+    const [hasPendingRequests, setHasPendingRequests] = useState(false);
 
     useEffect(() => {
         const fetchRooms = async () => {
@@ -451,6 +452,33 @@ export default function RoomsPage() {
             }
         }
     }, []);
+
+
+    useEffect(() => {
+        // Automatisch Admin-Requests laden wenn Admin eingeloggt ist
+        if (role === 'admin') {
+            const fetchInitialRequests = async () => {
+                try {
+                    const res = await fetch('/api/calendar?action=admin-requests');
+                    if (res.ok) {
+                        const data = await res.json();
+                        setHasPendingRequests(data.length > 0);
+                        setAdminRequests(data);
+                        const grouped = groupAdminRequests(data);
+                        setGroupedAdminRequests(grouped);
+                    }
+                } catch (err) {
+                    console.error('Fehler beim automatischen Laden der Anfragen:', err);
+                }
+            };
+
+            fetchInitialRequests();
+
+            const intervalId = setInterval(fetchInitialRequests, 30000); 
+
+            return () => clearInterval(intervalId);
+        }
+    }, [role]);
 
     const fetchTimeslots = useCallback(async (isBackgroundRefresh = false) => {
         if (!selectedRoomId) return;
@@ -946,6 +974,8 @@ export default function RoomsPage() {
 
             const grouped = groupAdminRequests(data);
             setGroupedAdminRequests(grouped);
+            setHasPendingRequests(data.length > 0);
+
         } catch (err) {
             console.error('Fehler beim Laden der Admin-Anfragen:', err);
             showError('Fehler beim Laden der Anfragen');
@@ -1472,6 +1502,9 @@ export default function RoomsPage() {
                             <span className="w-6 h-1 sm:w-8 bg-green-700 rounded-full" />
                         </>
                     )}
+                    {hasPendingRequests && !isSidebarOpen && (
+                        <span className="absolute -top-1 -left-1 h-4 w-4 bg-green-700 rounded-full border-2 border-black m-1"></span>
+                    )}
                 </button>
             )}
 
@@ -1492,8 +1525,12 @@ export default function RoomsPage() {
                         handleOpenRequestsPopup();
                         setIsSidebarOpen(false);
                     }}
-                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm cursor-pointer">
+                        className="mb-2 px-3 py-2 rounded-lg bg-[#dfeedd] hover:bg-[#c8e2c1] text-[#0f692b] font-semibold text-sm cursor-pointer relative">
                         Anfragen verwalten
+                        {hasPendingRequests && adminRequests.length > 0 && (
+                            <span className="absolute -top-1 -left-1 h-4 w-4 bg-green-700 rounded-full border-2 border-black m-1">
+                            </span>
+                        )}
                     </button>
                     <button onClick={() => {
                         setShowBlockPopup(true);
