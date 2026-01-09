@@ -779,8 +779,6 @@ export async function DELETE(req: NextRequest) {
     conn = await pool.getConnection();
 
     if (pattern_id) {
-      const userRows = await getUserEmailData(conn, parseInt(pattern_id));
-      const userData = userRows[0];
 
       const bookings = await conn.query(`SELECT b.timeslot_id FROM booking b WHERE b.pattern_id = ?`, [pattern_id]);
       if (bookings.length === 0) return NextResponse.json({ message: "Serie nicht gefunden." }, { status: 404 });
@@ -791,25 +789,25 @@ export async function DELETE(req: NextRequest) {
       }
       await conn.query("DELETE FROM recurring_pattern WHERE pattern_id = ?", [pattern_id]);
 
-      if (userData) {
-        const userRoleCheck = await conn.query(
-          "SELECT role_id FROM users WHERE user_id = ?",
-          [userData.user_id]
-        );
+      // if (userData) {
+      //   const userRoleCheck = await conn.query(
+      //     "SELECT role_id FROM users WHERE user_id = ?",
+      //     [userData.user_id]
+      //   );
 
-        if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
-          await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
-            roomName: userData.room_name,
-            date: userData.slot_date,
-            startTime: userData.start_time,
-            endTime: userData.end_time,
-            reason: userData.reason,
-            isRecurring: userData.is_recurring,
-            untilDate: userData.until_date,
-            patternId: parseInt(pattern_id),
-          });
-        }
-      }
+      //   if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
+      //     await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
+      //       roomName: userData.room_name,
+      //       date: userData.slot_date,
+      //       startTime: userData.start_time,
+      //       endTime: userData.end_time,
+      //       reason: userData.reason,
+      //       isRecurring: userData.is_recurring,
+      //       untilDate: userData.until_date,
+      //       patternId: parseInt(pattern_id),
+      //     });
+      //   }
+      // }
 
       return NextResponse.json({ message: "Serie erfolgreich gelöscht.", pattern_id: Number(pattern_id) });
     }
@@ -825,22 +823,22 @@ export async function DELETE(req: NextRequest) {
     await conn.query("DELETE FROM booking WHERE booking_id = ?", [booking_id]);
     await conn.query("DELETE FROM timeslot WHERE timeslot_id = ?", [timeslot_id]);
 
-    if (userData) {
-      const userRoleCheck = await conn.query(
-        "SELECT role_id FROM users WHERE user_id = ?",
-        [userData.user_id]
-      );
+    // if (userData) {
+    //   const userRoleCheck = await conn.query(
+    //     "SELECT role_id FROM users WHERE user_id = ?",
+    //     [userData.user_id]
+    //   );
 
-      if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
-        await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
-          roomName: userData.room_name,
-          date: userData.slot_date,
-          startTime: userData.start_time,
-          endTime: userData.end_time,
-          reason: userData.reason,
-        });
-      }
-    }
+    //   if (userRoleCheck.length > 0 && userRoleCheck[0].role_id !== 1) {
+    //     await sendBookingNotificationEmail(userData.email, userData.first_name, "rejected", {
+    //       roomName: userData.room_name,
+    //       date: userData.slot_date,
+    //       startTime: userData.start_time,
+    //       endTime: userData.end_time,
+    //       reason: userData.reason,
+    //     });
+    //   }
+    // }
 
     return NextResponse.json({ message: "Buchung erfolgreich gelöscht.", booking_id: Number(booking_id) });
   } catch (err) {
