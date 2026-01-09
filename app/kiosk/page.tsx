@@ -18,6 +18,7 @@ type Booking = {
 export default function KioskPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<{room_id: number, room_name: string}[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | 'all'>('all');
 
   // Räume laden
   useEffect(() => {
@@ -26,7 +27,15 @@ export default function KioskPage() {
         const res = await fetch('/api/rooms?visible=true');
         const data = await res.json();
         if (data.rooms) {
-          setRooms(data.rooms);
+          const sortedRooms = data.rooms.sort((a: any, b: any) => 
+            a.room_name.localeCompare(b.room_name)
+          );
+          setRooms(sortedRooms);
+          
+          // Wenn Räume geladen wurden, automatisch ersten Raum auswählen
+          if (sortedRooms.length > 0) {
+            setSelectedRoomId(sortedRooms[0].room_id);
+          }
         }
       } catch (error) {
         console.error('Fehler:', error);
@@ -41,22 +50,44 @@ export default function KioskPage() {
       const today = new Date().toISOString().split('T')[0];
       const now = new Date();
       
-      const allBookings: Booking[] = [];
+      let allBookings: Booking[] = [];
       
-      for (const room of rooms) {
-        try {
-          const res = await fetch(`/api/calendar?room_id=${room.room_id}`);
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            data.forEach((item: any) => {
-              allBookings.push({
-                ...item,
-                room_name: room.room_name
+      // Wenn "Alle Räume" ausgewählt ist, alle Räume laden
+      if (selectedRoomId === 'all') {
+        for (const room of rooms) {
+          try {
+            const res = await fetch(`/api/calendar?room_id=${room.room_id}`);
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              data.forEach((item: any) => {
+                allBookings.push({
+                  ...item,
+                  room_name: room.room_name
+                });
               });
-            });
+            }
+          } catch (error) {
+            console.error(`Fehler:`, error);
           }
-        } catch (error) {
-          console.error(`Fehler:`, error);
+        }
+      } else {
+        // Nur einen bestimmten Raum laden
+        const selectedRoom = rooms.find(r => r.room_id === selectedRoomId);
+        if (selectedRoom) {
+          try {
+            const res = await fetch(`/api/calendar?room_id=${selectedRoomId}`);
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              data.forEach((item: any) => {
+                allBookings.push({
+                  ...item,
+                  room_name: selectedRoom.room_name
+                });
+              });
+            }
+          } catch (error) {
+            console.error(`Fehler beim Laden von Raum ${selectedRoom.room_name}:`, error);
+          }
         }
       }
 
@@ -84,7 +115,7 @@ export default function KioskPage() {
     loadBookings();
     const interval = setInterval(loadBookings, 20000);
     return () => clearInterval(interval);
-  }, [rooms]);
+  }, [rooms, selectedRoomId]);
 
   const formatTime = (time: string) => time.substring(0, 5);
 
@@ -108,7 +139,22 @@ export default function KioskPage() {
 
   return (
     <div className="min-h-screen bg-[#dfeedd] p-4">
-      {/* Nur Liste, nichts anderes */}
+      {/* Dropdown zur Raumauswahl */}
+      <div className="max-w-xl mx-auto mb-4">
+        <select
+          className="w-full rounded-xl border-2 border-[#0f692b] bg-white px-4 py-3 text-lg font-semibold text-[#0f692b] focus:outline-none"
+          value={selectedRoomId}
+          onChange={(e) => setSelectedRoomId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+        >
+          <option value="all">Alle Räume</option>
+          {rooms.map((room) => (
+            <option key={room.room_id} value={room.room_id}>
+              {room.room_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {bookings.length === 0 ? (
         <div className="text-center pt-20 text-gray-500">
           Keine Buchungen
@@ -124,9 +170,6 @@ export default function KioskPage() {
               <div className="flex items-center gap-3">
                 <div className="text-xl font-bold">
                   {formatTime(booking.start_time)}-{formatTime(booking.end_time)}
-                </div>
-                <div className="text-sm">
-                  {booking.room_name}
                 </div>
                 <div className="flex-1">
                   {booking.username}
@@ -147,9 +190,6 @@ export default function KioskPage() {
               <div className="flex items-center gap-3">
                 <div className="text-xl font-bold text-[#0f692b]">
                   {formatTime(booking.start_time)}-{formatTime(booking.end_time)}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {booking.room_name}
                 </div>
                 <div className="text-gray-700 flex-1">
                   {booking.username}

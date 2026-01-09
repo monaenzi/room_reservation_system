@@ -24,7 +24,7 @@ export default function AdminUsersPage() {
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [roleId, setRoleId] = useState("0");
+  const [roleId, setRoleId] = useState("2");
   const [loading, setLoading] = useState(false);
 
   const [createError, setCreateError] = useState<string | null>(null);
@@ -396,7 +396,7 @@ export default function AdminUsersPage() {
         <div className="mb-10">
           <button
             onClick={() => setShowCreateSection(!showCreateSection)}
-            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
+            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100 cursor-pointer"
           >
             <h2 className="text-xl font-bold text-green-700">
               User erstellen
@@ -485,7 +485,7 @@ export default function AdminUsersPage() {
                   <select
                     value={roleId}
                     onChange={(e) => setRoleId(e.target.value)}
-                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm"
+                    className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-base outline-none focus:border-green-800 sm:text-sm cursor-pointer"
                   >
                     <option value="1">Admin</option>
                     <option value="2">User</option>
@@ -503,7 +503,7 @@ export default function AdminUsersPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex w-full justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:w-auto"
+                    className="inline-flex w-full justify-center rounded-full bg-green-700 px-10 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 sm:w-auto cursor-pointer"
                   >
                     {loading ? "Wird angelegt..." : "Benutzer anlegen"}
                   </button>
@@ -520,7 +520,7 @@ export default function AdminUsersPage() {
               setEditError(null);
               setEditSuccess(null);
             }}
-            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100"
+            className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-green-700 bg-green-50 px-6 py-4 text-left hover:bg-green-100 cursor-pointer"
           >
             <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
 
@@ -593,7 +593,7 @@ export default function AdminUsersPage() {
                               setUserToDelete(user);
                               setShowDeleteConfirm(true);
                             }}
-                            className="text-red-600 hover:text-red-800 transition-color"
+                            className="text-red-600 hover:text-red-800 transition-color cursor-pointer"
                             title="User löschen"
                           >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -625,7 +625,7 @@ export default function AdminUsersPage() {
           <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-green-700">User bearbeiten</h2>
-              <button onClick={handleClosePopup} className="text-neutral-400 hover:text-neutral-600">
+              <button onClick={handleClosePopup} className="text-neutral-400 hover:text-neutral-600 cursor-pointer">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -694,7 +694,7 @@ export default function AdminUsersPage() {
                 <select
                   value={editRoleId}
                   onChange={(e) => setEditRoleId(e.target.value)}
-                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800"
+                  className="w-full rounded-xl border-2 border-green-700 bg-green-100 px-4 py-3 text-sm outline-none focus:border-green-800 cursor-pointer"
                 >
                   <option value="1">Admin</option>
                   <option value="2">User</option>
@@ -706,7 +706,7 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={handleResetPassword}
                   disabled={resetLoading}
-                  className="w-full rounded-xl border-2 border-red-300 bg-red-100 py-2 text-sm font-medium text-red-500 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                  className="w-full rounded-xl border-2 border-red-300 bg-red-100 py-2 text-sm font-medium text-red-500 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700 transition-colors cursor-pointer"
                 >
                   {resetLoading ? "..." : "Passwort zurücksetzen"}
                 </button>
@@ -722,7 +722,7 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={handleClosePopup}
-                  className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
+                  className="rounded-full border-2 border-green-700 bg-white px-6 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50 cursor-pointer"
                 >
                   Abbrechen
                 </button>
@@ -730,7 +730,7 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={handleSaveEdit}
                   disabled={editLoading}
-                  className="rounded-full bg-green-700 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70"
+                  className="rounded-full bg-green-700 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-green-700/70 cursor-pointer"
                 >
                   {editLoading ? "Wird gespeichert..." : "Speichern"}
                 </button>
