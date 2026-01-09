@@ -6,9 +6,13 @@ A simple and modern **room reservation web application** built with **Next.js**.
 
 ##  Features
 
+- Upload of own rooms with pictures (admin)
 - Browse and select available rooms  
-- Book rooms with date & time selection  
+- Book rooms with date & time selection, routine bookings are also possible
+- Block Timeslots e.g. for Holidays (admin) 
 - Store reservations 
+- Store user information, edit it, reset password and delete user (admin)
+- Send out e-mails for confirmation of booking, request password reset and confirmation of password reset
 
 ---
 
@@ -23,6 +27,7 @@ A simple and modern **room reservation web application** built with **Next.js**.
 | **Node.js** | Runtime environment |
 | **Turbopack** | Fast bundler for development |
 | **ESLint** | Linting and code quality checks |
+| **MariaDB** | Database used in this program |
 
 ---
 
@@ -44,20 +49,77 @@ The middleware should then only be used for:
 - access control
 - redirects
 
+---
 
 ## Project Structure
 
 ```
 room-reservation/
 ├── app/
+| ├── admin/
+| | └── page.tsx
+| ├── api/
+| | ├── admin
+| | | ├── [user_id]/
+| | | | └── route.ts
+| | | └── route.ts
+| | ├── calendar
+| | | └── route.ts
+| | ├── change-password
+| | | └── route.ts
+| | ├── login
+| | | └── route.ts
+| | ├── logout
+| | | └── route.ts
+| | ├── pwforgotten
+| | | └── route.ts
+| | └── rooms
+| | | └── route.ts
+| ├── calender/
+| | ├── page.tsx
+| | └── loading.tsx
+| | 
+| ├── change-password/
+| | └── page.tsx
+| ├── kiosk/
+| | └── page.tsx
+| ├── login/
+| | └── page.tsx
+| ├── psforgotten/
+| | └── page.tsx
+| ├── rooms/
+| | └── page.tsx
 │ ├── page.js # Home page (entry point)
 │ ├── layout.js # Shared layout (header, footer, metadata)
-│ └── globals.css # Global styles
+| └── globals.css # Global styles
+├── components/
+│ ├── Footer.tsx
+| └── NavBar.tsx
+├── utils/
+| └── alertHelper.ts
 ├── public/ # Static assets (images, icons, etc.)
+│ ├── icons
+│ ├── pictures
+│ ├── uploads
+| └──  logo.svg
+├── .gitignore
+├── eslint.config.mjs
+├── global.d.ts
+├── LICENSE
+├── next.config.ts
 ├── package.json
-├── next.config.js
+├── postcss.config.js
+├── postcss.config.mjs
+├── tailwind.config.js
+├── tsconfig.json
 └── README.md
 ```
+
+---
+
+## Database
+
+The database scheme can be found under `/database/schema.sql`
 
 ---
 
@@ -76,7 +138,13 @@ cd room_reservation_system
 npm install
 ```
 
-### 3. Run the development server
+### 3. Create .env
+
+Configure to your database and mailserver.
+
+### 4. Start database
+
+### 5. Run the development server
 
 ```bash
 npm run dev
